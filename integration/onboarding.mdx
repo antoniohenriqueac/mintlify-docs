@@ -1,0 +1,569 @@
+---
+title: 'Onboarding e Primeiros Passos'
+description: 'Guia completo para integrar sua aplicação com ConnectVets Notes do zero'
+---
+
+## Introdução ao Onboarding
+
+O processo de **onboarding** no ConnectVets Notes é projetado para colocar sua integração funcionando rapidamente, seguindo as melhores práticas de segurança e performance para aplicações veterinárias.
+
+<Info>
+  **Tempo estimado**: 15-30 minutos para uma integração básica funcionando
+</Info>
+
+## Pré-requisitos
+
+Antes de começar, certifique-se de ter:
+
+<CardGroup cols={2}>
+  <Card
+    title="Conta ConnectVets"
+    icon="user"
+  >
+    - ✅ Conta criada em [notes.connectvets.com.br](https://notes.connectvets.com.br)
+    - ✅ Workspace/clínica configurado
+    - ✅ Plano ativo (trial ou pago)
+  </Card>
+  
+  <Card
+    title="Ambiente de Desenvolvimento"
+    icon="code"
+  >
+    - ✅ Node.js 16+ ou Python 3.8+
+    - ✅ Editor de código
+    - ✅ Cliente HTTP (Postman, curl, etc.)
+    - ✅ Acesso à internet
+  </Card>
+</CardGroup>
+
+## Fluxo de Onboarding
+
+### Passo 1: Criar API Key
+
+<Steps>
+  <Step title="Acessar Dashboard">
+    Faça login em [notes.connectvets.com.br](https://notes.connectvets.com.br)
+  </Step>
+  
+  <Step title="Ir para Configurações">
+    No menu lateral, clique em **Configurações** → **API Keys**
+  </Step>
+  
+  <Step title="Criar Nova Chave">
+    Clique em **"Nova API Key"** e escolha:
+    - **Nome**: Ex: "Integração Sistema Veterinário"
+    - **Tipo**: `write` (recomendado para integração completa)
+    - **Ambiente**: `test` para desenvolvimento, `live` para produção
+  </Step>
+  
+  <Step title="Copiar Chave">
+    ⚠️ **IMPORTANTE**: A chave é exibida apenas uma vez! Copie e armazene com segurança.
+  </Step>
+</Steps>
+
+### Formato da API Key
+
+```bash
+# Estrutura da chave
+cvn_live_1234567890abcdef1234567890abcdef
+
+# Onde:
+cvn      = Prefixo ConnectVets Notes
+live     = Ambiente (live/test)  
+1234...  = Token único
+```
+
+### Passo 2: Configurar Ambiente
+
+```bash
+# .env (NUNCA commitar este arquivo!)
+CONNECTVETS_API_KEY=cvn_test_sua_chave_aqui
+CONNECTVETS_BASE_URL=https://api.connectvets.com.br
+CONNECTVETS_ENVIRONMENT=development
+```
+
+```bash
+# .env.example (pode commitar)
+CONNECTVETS_API_KEY=your_api_key_here
+CONNECTVETS_BASE_URL=https://api.connectvets.com.br
+CONNECTVETS_ENVIRONMENT=development
+```
+
+### Passo 3: Primeiro Teste
+
+<CodeGroup>
+
+```javascript JavaScript/Node.js
+// Testar conectividade com a API
+const CONNECTVETS_API_KEY = process.env.CONNECTVETS_API_KEY;
+const BASE_URL = 'https://api.connectvets.com.br/v1';
+
+async function testConnection() {
+  try {
+    const response = await fetch(`${BASE_URL}/notes`, {
+      method: 'GET',
+      headers: {
+        'X-API-KEY': CONNECTVETS_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Conexão estabelecida!');
+      console.log(`📋 Encontradas ${data.data.length} notas`);
+      return data;
+    } else {
+      console.error('❌ Erro na conexão:', response.status);
+    }
+  } catch (error) {
+    console.error('❌ Erro de rede:', error.message);
+  }
+}
+
+testConnection();
+```
+
+```python Python
+import os
+import requests
+
+# Configuração
+API_KEY = os.getenv('CONNECTVETS_API_KEY')
+BASE_URL = 'https://api.connectvets.com.br/v1'
+
+def test_connection():
+    """Testar conectividade com a API"""
+    try:
+        headers = {
+            'X-API-KEY': API_KEY,
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.get(f'{BASE_URL}/notes', headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            print('✅ Conexão estabelecida!')
+            print(f'📋 Encontradas {len(data["data"])} notas')
+            return data
+        else:
+            print(f'❌ Erro na conexão: {response.status_code}')
+            print(response.text)
+            
+    except requests.RequestException as error:
+        print(f'❌ Erro de rede: {error}')
+
+if __name__ == "__main__":
+    test_connection()
+```
+
+```bash cURL
+# Teste básico via curl
+curl -X GET "https://api.connectvets.com.br/v1/notes" \
+  -H "X-API-KEY: cvn_test_sua_chave_aqui" \
+  -H "Content-Type: application/json" \
+  --verbose
+
+# Resposta esperada: HTTP 200 com lista de notas
+```
+
+```go Go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+)
+
+type NotesResponse struct {
+    Data []Note `json:"data"`
+}
+
+type Note struct {
+    ID       string `json:"id"`
+    Name     string `json:"name"`
+    Status   string `json:"transcription_status"`
+}
+
+func testConnection() error {
+    apiKey := os.Getenv("CONNECTVETS_API_KEY")
+    if apiKey == "" {
+        return fmt.Errorf("CONNECTVETS_API_KEY não configurada")
+    }
+    
+    req, err := http.NewRequest("GET", "https://api.connectvets.com.br/v1/notes", nil)
+    if err != nil {
+        return err
+    }
+    
+    req.Header.Set("X-API-KEY", apiKey)
+    req.Header.Set("Content-Type", "application/json")
+    
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+    
+    if resp.StatusCode == 200 {
+        fmt.Println("✅ Conexão estabelecida!")
+        var notes NotesResponse
+        json.NewDecoder(resp.Body).Decode(&notes)
+        fmt.Printf("📋 Encontradas %d notas\n", len(notes.Data))
+    } else {
+        fmt.Printf("❌ Erro na conexão: %d\n", resp.StatusCode)
+    }
+    
+    return nil
+}
+
+func main() {
+    if err := testConnection(); err != nil {
+        fmt.Printf("Erro: %v\n", err)
+    }
+}
+```
+
+</CodeGroup>
+
+### Passo 4: Envio de Áudio
+
+<CodeGroup>
+
+```javascript JavaScript
+async function uploadAudio(audioFile, metadata) {
+  const formData = new FormData();
+  formData.append('audio', audioFile);
+  formData.append('name', metadata.patientName);
+  formData.append('gender', metadata.gender || 'unidentified');
+  formData.append('external_id', metadata.externalId || '');
+  
+  try {
+    const response = await fetch(`${BASE_URL}/notes`, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': CONNECTVETS_API_KEY
+      },
+      body: formData
+    });
+    
+    if (response.ok) {
+      const note = await response.json();
+      console.log('✅ Áudio enviado com sucesso!');
+      console.log('📋 ID da nota:', note.data.id);
+      return note.data;
+    } else {
+      console.error('❌ Erro no envio:', response.status);
+    }
+  } catch (error) {
+    console.error('❌ Erro:', error.message);
+  }
+}
+
+// Exemplo de uso
+const audioFile = new File([audioBlob], 'consulta.wav', { type: 'audio/wav' });
+const metadata = {
+  patientName: 'Rex',
+  gender: 'male',
+  externalId: 'PET_001'
+};
+
+uploadAudio(audioFile, metadata);
+```
+
+```python Python
+import requests
+
+def upload_audio(audio_file_path, metadata):
+    """Upload de arquivo de áudio"""
+    try:
+        with open(audio_file_path, 'rb') as audio_file:
+            files = {'audio': audio_file}
+            data = {
+                'name': metadata.get('patient_name', ''),
+                'gender': metadata.get('gender', 'unidentified'),
+                'external_id': metadata.get('external_id', '')
+            }
+            
+            headers = {'X-API-KEY': API_KEY}
+            
+            response = requests.post(
+                f'{BASE_URL}/notes',
+                headers=headers,
+                files=files,
+                data=data
+            )
+            
+            if response.status_code == 201:
+                note = response.json()
+                print('✅ Áudio enviado com sucesso!')
+                print(f'📋 ID da nota: {note["data"]["id"]}')
+                return note['data']
+            else:
+                print(f'❌ Erro no envio: {response.status_code}')
+                print(response.text)
+                
+    except Exception as error:
+        print(f'❌ Erro: {error}')
+
+# Exemplo de uso
+metadata = {
+    'patient_name': 'Rex',
+    'gender': 'male',
+    'external_id': 'PET_001'
+}
+
+upload_audio('path/to/audio.wav', metadata)
+```
+
+</CodeGroup>
+
+### Passo 5: Monitorar Processamento
+
+<CodeGroup>
+
+```javascript JavaScript
+async function checkNoteStatus(noteId) {
+  try {
+    const response = await fetch(`${BASE_URL}/notes/${noteId}`, {
+      headers: {
+        'X-API-KEY': CONNECTVETS_API_KEY
+      }
+    });
+    
+    if (response.ok) {
+      const note = await response.json();
+      return note.data;
+    }
+  } catch (error) {
+    console.error('Erro ao verificar status:', error);
+  }
+}
+
+async function waitForCompletion(noteId, maxWaitTime = 300000) {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < maxWaitTime) {
+    const note = await checkNoteStatus(noteId);
+    
+    console.log(`Status: ${note.transcription_status}`);
+    
+    if (note.transcription_status === 'completed') {
+      console.log('✅ Processamento concluído!');
+      return note;
+    } else if (note.transcription_status === 'failed') {
+      console.log('❌ Processamento falhou');
+      return note;
+    }
+    
+    // Aguardar 3 segundos antes da próxima verificação
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+  
+  console.log('⏰ Timeout: processamento ainda em andamento');
+}
+```
+
+```python Python
+import time
+
+def check_note_status(note_id):
+    """Verificar status da nota"""
+    try:
+        response = requests.get(
+            f'{BASE_URL}/notes/{note_id}',
+            headers={'X-API-KEY': API_KEY}
+        )
+        
+        if response.status_code == 200:
+            return response.json()['data']
+    except Exception as error:
+        print(f'Erro ao verificar status: {error}')
+
+def wait_for_completion(note_id, max_wait_time=300):
+    """Aguardar conclusão do processamento"""
+    start_time = time.time()
+    
+    while time.time() - start_time < max_wait_time:
+        note = check_note_status(note_id)
+        
+        print(f'Status: {note["transcription_status"]}')
+        
+        if note['transcription_status'] == 'completed':
+            print('✅ Processamento concluído!')
+            return note
+        elif note['transcription_status'] == 'failed':
+            print('❌ Processamento falhou')
+            return note
+        
+        # Aguardar 3 segundos
+        time.sleep(3)
+    
+    print('⏰ Timeout: processamento ainda em andamento')
+```
+
+</CodeGroup>
+
+## Padrões de Integração
+
+### 1. Integração Síncrona (Polling)
+
+```javascript
+// Fluxo completo com polling
+async function processAudioSync(audioFile, metadata) {
+  // 1. Upload
+  const note = await uploadAudio(audioFile, metadata);
+  
+  // 2. Aguardar processamento
+  const completedNote = await waitForCompletion(note.id);
+  
+  // 3. Usar resultado
+  if (completedNote.transcription_status === 'completed') {
+    displayResults(completedNote);
+  }
+}
+```
+
+### 2. Integração Assíncrona (Webhooks)
+
+```javascript
+// Configurar webhook primeiro
+async function setupWebhook() {
+  const webhook = await fetch(`${BASE_URL}/webhooks`, {
+    method: 'POST',
+    headers: {
+      'X-API-KEY': CONNECTVETS_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      url: 'https://minha-app.com/webhooks/connectvets',
+      events: ['note.completed', 'note.failed'],
+      description: 'Webhook Principal'
+    })
+  });
+}
+
+// Upload sem aguardar
+async function processAudioAsync(audioFile, metadata) {
+  const note = await uploadAudio(audioFile, metadata);
+  
+  // Salvar ID da nota para processar no webhook
+  await saveNoteToDatabase({
+    id: note.id,
+    status: 'pending',
+    patient_name: metadata.patientName
+  });
+  
+  return note.id;
+}
+```
+
+## Tratamento de Erros
+
+### Códigos de Erro Comuns
+
+<Accordion title="400 Bad Request">
+  **Causa**: Dados inválidos ou arquivo corrompido
+  
+  **Soluções**:
+  - Validar formato do áudio (WAV, MP3, M4A)
+  - Verificar tamanho do arquivo (< 100MB)
+  - Confirmar metadados obrigatórios
+</Accordion>
+
+<Accordion title="401 Unauthorized">
+  **Causa**: API Key inválida ou expirada
+  
+  **Soluções**:
+  - Verificar se a chave está correta
+  - Confirmar que não expirou
+  - Testar com nova API Key
+</Accordion>
+
+<Accordion title="429 Too Many Requests">
+  **Causa**: Excedeu limite de requisições
+  
+  **Soluções**:
+  - Implementar retry com backoff
+  - Distribuir requisições no tempo
+  - Otimizar frequência de chamadas
+</Accordion>
+
+### Implementação de Retry
+
+<CodeGroup>
+```javascript JavaScript
+async function apiCallWithRetry(fn, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      
+      const delay = Math.min(1000 * Math.pow(2, i), 10000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+```
+
+```python Python
+import time
+import random
+
+def api_call_with_retry(fn, max_retries=3):
+    for i in range(max_retries):
+        try:
+            return fn()
+        except Exception as error:
+            if i == max_retries - 1:
+                raise error
+            
+            delay = min(1000 * (2 ** i), 10000) / 1000
+            time.sleep(delay + random.uniform(0, 1))
+```
+</CodeGroup>
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card title="Configurar Webhooks" icon="webhook" href="/concepts/webhooks">
+    Para notificações em tempo real
+  </Card>
+  <Card title="Ver Exemplos" icon="code" href="/examples/basic-integration">
+    Implementações completas funcionais
+  </Card>
+  <Card title="Configurar Workspaces" icon="building" href="/concepts/tenants">
+    Para múltiplas clínicas
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/overview">
+    Documentação completa da API
+  </Card>
+</CardGroup>
+
+## Checklist de Integração
+
+### ✅ Desenvolvimento
+- [ ] API Key criada e testada
+- [ ] Primeiro upload de áudio funcionando
+- [ ] Polling ou webhooks implementados
+- [ ] Tratamento de erros implementado
+- [ ] Logs e monitoramento configurados
+
+### ✅ Produção
+- [ ] API Key de produção criada
+- [ ] Ambiente de produção configurado
+- [ ] Webhooks de produção testados
+- [ ] Backup e recovery implementados
+- [ ] Monitoramento de performance ativo
+
+---
+
+<Tip>
+**Precisa de ajuda?** Entre em contato no [Discord](https://discord.gg/uN4NxUGk) ou [WhatsApp](https://wa.me/5531888835141).
+</Tip> 

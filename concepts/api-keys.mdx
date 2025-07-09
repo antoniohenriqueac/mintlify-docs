@@ -1,0 +1,343 @@
+---
+title: 'API Keys'
+description: 'Entenda como funcionam as chaves de API no ConnectVets Notes'
+---
+
+## O que são API Keys?
+
+As **API Keys** (Chaves de API) são tokens únicos que identificam e autenticam sua aplicação ou clínica ao usar a API ConnectVets Notes. Funcionam como uma "senha" que comprova que você tem permissão para acessar e usar nossos serviços.
+
+<Info>
+  Cada API Key é **única** e identifica um **Tenant/Clínica** específico dentro da plataforma.
+</Info>
+
+## Anatomia de uma API Key
+
+As API Keys do ConnectVets seguem um formato específico para facilitar identificação:
+
+<CodeGroup>
+```text Estrutura Visual
+┌─────┬──────┬────────────────────────────────────────┐
+│ cvn │ live │ abc123def456ghi789jkl012mno345pqr678   │
+└─────┴──────┴────────────────────────────────────────┘
+  │     │       │
+  │     │       └── Token único (32 caracteres)
+  │     └────────── Ambiente (live/test)  
+  └──────────────── Prefixo ConnectVets Notes
+```
+
+```text Exemplo Real
+cvn_live_abc123def456ghi789jkl012mno345pqr678
+```
+</CodeGroup>
+
+<CardGroup cols={3}>
+  <Card
+    title="Prefixo"
+    icon="tag"
+  >
+    **cvn**
+    
+    Identifica que é uma chave do ConnectVets Notes
+  </Card>
+  
+  <Card
+    title="Ambiente"
+    icon="server"
+  >
+    **live** ou **test**
+    
+    Indica se é produção ou desenvolvimento
+  </Card>
+  
+  <Card
+    title="Token"
+    icon="key"
+  >
+    **32 caracteres**
+    
+    Identificador único criptografado
+  </Card>
+</CardGroup>
+
+## Tipos de API Keys
+
+### Por Ambiente
+
+<CardGroup cols={2}>
+  <Card
+    title="Produção (Live)"
+    icon="globe"
+  >
+    **Prefixo**: `cvn_live_`
+    
+    - Usada em produção
+    - Dados reais de clínicas
+    - Rate limits padrão
+    - Monitoramento ativo
+  </Card>
+  
+  <Card
+    title="Teste (Test)"
+    icon="flask"
+  >
+    **Prefixo**: `cvn_test_`
+    
+    - Ambiente de desenvolvimento
+    - Dados fictícios
+    - Rate limits relaxados
+    - Ideal para testes
+  </Card>
+</CardGroup>
+
+### Por Permissões
+
+| Tipo | Descrição | Permissões |
+|------|-----------|------------|
+| **Admin** | Acesso completo | Criar, ler, atualizar, deletar tudo |
+| **Write** | Leitura e escrita | Criar e ler notas, gerenciar webhooks |
+| **Read** | Apenas leitura | Listar e visualizar notas existentes |
+
+## Gerenciamento de API Keys
+
+### Criação
+
+<Steps>
+  <Step title="Acesse o painel">
+    `https://notes.connectvets.com.br`
+  </Step>
+  <Step title="Vá para Configurações">
+    **Configurações** → **API Keys**
+  </Step>
+  <Step title="Clique em "Nova API Key"">
+    Escolha o tipo e nomeie a chave
+  </Step>
+  <Step title="Copie a chave">
+    **Exibida apenas uma vez!**
+  </Step>
+</Steps>
+
+<Warning>
+  **Importante**: A chave é exibida **apenas uma vez** após a criação. Se perder, será necessário criar uma nova.
+</Warning>
+
+### Rotação de Chaves
+
+<Accordion title="Quando fazer rotação?">
+  - **Periodicidade**: A cada 6-12 meses
+  - **Comprometimento**: Se suspeitar que foi exposta
+  - **Mudança de equipe**: Quando desenvolvedores saem
+  - **Auditoria**: Como boa prática de segurança
+</Accordion>
+
+<Accordion title="Como fazer rotação?">
+  1. **Crie uma nova** API Key
+  2. **Atualize seus sistemas** com a nova chave
+  3. **Teste o funcionamento** em staging
+  4. **Deploy em produção**
+  5. **Revogue a chave antiga** após confirmação
+</Accordion>
+
+## Segurança
+
+### ✅ Boas Práticas
+
+- **Nunca compartilhe** em código público (GitHub, Slack, etc.)
+- **Use variáveis de ambiente** para armazenar
+- **Implemente fallback** durante rotação
+- **Monitore uso** regularmente
+- **Revogue imediatamente** se comprometida
+
+### ❌ Práticas Perigosas
+
+- Hardcoded no código
+- Enviada por email ou chat
+- Compartilhada em screenshots
+- Commitada no Git
+- Logada em arquivos de debug
+
+### Exemplo de Armazenamento Seguro
+
+<CodeGroup>
+```bash .env
+# Variáveis de ambiente
+CONNECTVETS_API_KEY=cvn_live_abc123def456ghi789jkl012mno345pqr678
+CONNECTVETS_ENVIRONMENT=production
+```
+
+```javascript Node.js
+// Usando dotenv
+require('dotenv').config();
+
+const apiKey = process.env.CONNECTVETS_API_KEY;
+
+if (!apiKey) {
+  throw new Error('CONNECTVETS_API_KEY não configurada');
+}
+
+const headers = {
+  'X-API-KEY': apiKey,
+  'Content-Type': 'application/json'
+};
+```
+
+```python Python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+api_key = os.getenv('CONNECTVETS_API_KEY')
+if not api_key:
+    raise ValueError('CONNECTVETS_API_KEY não configurada')
+
+headers = {
+    'X-API-KEY': api_key,
+    'Content-Type': 'application/json'
+}
+```
+</CodeGroup>
+
+## Rate Limits
+
+### Limites por Tipo
+
+| Tipo | Requests/min | Requests/hora | Notas/mês |
+|------|--------------|---------------|-----------|
+| **Read** | 60 | 1.000 | - |
+| **Write** | 100 | 2.000 | 500 |
+| **Admin** | 200 | 5.000 | 2.000 |
+
+### Tratamento de Rate Limits
+
+<CodeGroup>
+```javascript JavaScript
+async function callAPIWithRetry(url, options, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, options);
+      
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After') || 60;
+        console.log(`Rate limit atingido. Aguardando ${retryAfter}s...`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        continue;
+      }
+      
+      return response;
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+}
+```
+
+```python Python
+import time
+import requests
+
+def call_api_with_retry(url, headers, max_retries=3):
+    for i in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers)
+            
+            if response.status_code == 429:
+                retry_after = int(response.headers.get('Retry-After', 60))
+                print(f"Rate limit atingido. Aguardando {retry_after}s...")
+                time.sleep(retry_after)
+                continue
+                
+            return response
+        except Exception as e:
+            if i == max_retries - 1:
+                raise e
+            time.sleep(1 * (i + 1))
+```
+</CodeGroup>
+
+## Monitoramento
+
+### Métricas Importantes
+
+<CardGroup cols={2}>
+  <Card title="Uso de Requests" icon="chart-line">
+    - Requests por minuto/hora
+    - Distribuição por endpoint
+    - Padrões de uso
+    - Picos de tráfego
+  </Card>
+  
+  <Card title="Erros e Falhas" icon="exclamation-triangle">
+    - Taxa de erro por chave
+    - Tipos de erro mais comuns
+    - Latência de resposta
+    - Disponibilidade da API
+  </Card>
+</CardGroup>
+
+### Dashboard de Monitoramento
+
+Acesse `https://notes.connectvets.com.br/settings/api-keys` para visualizar:
+
+- **Uso atual** vs limites
+- **Histórico** de requests
+- **Logs** de auditoria
+- **Alertas** de segurança
+
+## Troubleshooting
+
+### Erros Comuns
+
+<Accordion title="401 Unauthorized">
+  **Causa**: API Key inválida, expirada ou mal formatada
+  
+  **Soluções**:
+  - Verifique se a chave está correta
+  - Confirme que não expirou
+  - Valide o formato do header
+  - Teste com nova API Key
+</Accordion>
+
+<Accordion title="403 Forbidden">
+  **Causa**: API Key válida mas sem permissões necessárias
+  
+  **Soluções**:
+  - Verifique permissões da chave
+  - Use chave com nível adequado
+  - Contate administrador para upgrade
+  - Revise escopo da operação
+</Accordion>
+
+<Accordion title="429 Too Many Requests">
+  **Causa**: Excedeu limite de taxa da API Key
+  
+  **Soluções**:
+  - Implemente retry com backoff
+  - Distribua requisições no tempo
+  - Use múltiplas chaves se necessário
+  - Otimize frequência de chamadas
+</Accordion>
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
+    Configure notificações automáticas
+  </Card>
+  <Card title="Tenants" icon="building" href="/concepts/tenants">
+    Organize por clínica com workspaces
+  </Card>
+  <Card title="Integração" icon="puzzle-piece" href="/integration/onboarding">
+    Comece sua integração
+  </Card>
+  <Card title="Exemplos" icon="code" href="/examples/basic-integration">
+    Veja implementações práticas
+  </Card>
+</CardGroup>
+
+---
+
+<Tip>
+**Precisa de ajuda?** Entre em contato no [Discord](https://discord.gg/uN4NxUGk) ou [WhatsApp](https://wa.me/5531888835141).
+</Tip> 

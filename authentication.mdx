@@ -1,0 +1,373 @@
+---
+title: "Autenticação"
+description: "Como autenticar suas requisições com API Keys do ConnectVets Notes"
+icon: "key"
+---
+
+# Autenticação com API Keys 🔐
+
+O ConnectVets Notes usa **API Keys** para autenticar todas as requisições. É simples, seguro e permite controle granular de acesso.
+
+<Info>
+**Todas as requisições** para a API ConnectVets Notes devem incluir uma API Key válida no header `X-API-KEY`.
+</Info>
+
+## Como funciona
+
+<Steps>
+  <Step title="Obtenha uma API Key">
+    Crie uma API Key no dashboard do ConnectVets Notes
+  </Step>
+  <Step title="Inclua no header">
+    Adicione o header `X-API-KEY` em todas as requisições
+  </Step>
+  <Step title="Faça a requisição">
+    Envie sua requisição - a autenticação é automática
+  </Step>
+</Steps>
+
+## Criando uma API Key
+
+### Pelo Dashboard Web
+
+<Steps>
+  <Step title="Acesse o Dashboard">
+    Faça login em [notes.connectvets.com.br](https://notes.connectvets.com.br)
+  </Step>
+  <Step title="Navegue para API Keys">
+    Vá para **Configurações** → **API Keys** no menu lateral
+  </Step>
+  <Step title="Crie uma nova chave">
+    Clique em **"Nova API Key"** e preencha:
+    - **Nome**: Identifique o uso (ex: "Integração Sistema X")
+    - **Tipo**: Selecione as permissões necessárias
+    - **Expiração**: Defina quando expira (opcional)
+  </Step>
+  <Step title="Copie a chave">
+    ⚠️ **Importante**: Copie a chave imediatamente - ela só aparece uma vez!
+  </Step>
+</Steps>
+
+### Via API (para automação)
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.connectvets.com.br/v1/api-keys" \
+  -H "X-API-KEY: your_admin_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Integração Sistema X",
+    "permissions": ["notes:read", "notes:write"],
+    "expires_at": "2024-12-31T23:59:59Z"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.connectvets.com.br/v1/api-keys', {
+  method: 'POST',
+  headers: {
+    'X-API-KEY': 'your_admin_key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Integração Sistema X',
+    permissions: ['notes:read', 'notes:write'],
+    expires_at: '2024-12-31T23:59:59Z'
+  })
+});
+
+const apiKey = await response.json();
+console.log('Nova API Key:', apiKey.data.key);
+```
+
+```python Python
+import requests
+
+data = {
+    'name': 'Integração Sistema X',
+    'permissions': ['notes:read', 'notes:write'],
+    'expires_at': '2024-12-31T23:59:59Z'
+}
+
+response = requests.post(
+    'https://api.connectvets.com.br/v1/api-keys',
+    headers={'X-API-KEY': 'your_admin_key'},
+    json=data
+)
+
+api_key = response.json()
+print(f"Nova API Key: {api_key['data']['key']}")
+```
+</CodeGroup>
+
+## Usando API Keys
+
+Inclua sua API Key no header `X-API-KEY` de todas as requisições:
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.connectvets.com.br/v1/notes" \
+  -H "X-API-KEY: cvn_1234567890abcdef" \
+  -H "Content-Type: application/json"
+```
+
+```javascript JavaScript
+// Fetch API
+const response = await fetch('https://api.connectvets.com.br/v1/notes', {
+  headers: {
+    'X-API-KEY': 'cvn_1234567890abcdef',
+    'Content-Type': 'application/json'
+  }
+});
+
+// Axios
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'https://api.connectvets.com.br/v1',
+  headers: {
+    'X-API-KEY': 'cvn_1234567890abcdef'
+  }
+});
+```
+
+```python Python
+import requests
+
+# Session com header padrão
+session = requests.Session()
+session.headers.update({
+    'X-API-KEY': 'cvn_1234567890abcdef',
+    'Content-Type': 'application/json'
+})
+
+response = session.get('https://api.connectvets.com.br/v1/notes')
+```
+
+```go Go
+package main
+
+import (
+    "net/http"
+)
+
+func main() {
+    client := &http.Client{}
+    req, _ := http.NewRequest("GET", "https://api.connectvets.com.br/v1/notes", nil)
+    
+    req.Header.Add("X-API-KEY", "cvn_1234567890abcdef")
+    req.Header.Add("Content-Type", "application/json")
+    
+    resp, _ := client.Do(req)
+    defer resp.Body.Close()
+}
+```
+</CodeGroup>
+
+## Tipos de API Keys
+
+<CardGroup cols={3}>
+  <Card title="Administrador" icon="crown" color="#f59e0b">
+    **Permissões**: Todas
+    - Criar/deletar API Keys
+    - Gerenciar usuários
+    - Acesso completo às notas
+  </Card>
+  <Card title="Editor" icon="pencil" color="#3b82f6">
+    **Permissões**: Leitura e escrita
+    - Criar notas
+    - Atualizar notas existentes
+    - Visualizar todas as notas
+  </Card>
+  <Card title="Visualizador" icon="eye" color="#10b981">
+    **Permissões**: Somente leitura
+    - Visualizar notas
+    - Buscar e filtrar
+    - Sem permissões de escrita
+  </Card>
+</CardGroup>
+
+## Anatomia de uma API Key
+
+As API Keys do ConnectVets seguem um formato específico para facilitar identificação:
+
+<Frame>
+```
+cvn_1234567890abcdef1234567890abcdef
+│   │                                
+│   └── Chave secreta (32 caracteres hex)
+└── Prefixo identificador ConnectVets Notes
+```
+</Frame>
+
+## Boas Práticas de Segurança
+
+### Armazenamento Seguro
+
+<Warning>
+**Nunca commite** API Keys em repositórios públicos. Use variáveis de ambiente ou sistemas de gerenciamento de secrets.
+</Warning>
+
+<CodeGroup>
+```bash Variáveis de Ambiente
+# .env
+CONNECTVETS_API_KEY=cvn_1234567890abcdef
+
+# Uso
+curl -H "X-API-KEY: $CONNECTVETS_API_KEY" https://api.connectvets.com.br/v1/notes
+```
+
+```javascript Node.js
+// Usando dotenv
+require('dotenv').config();
+
+const apiKey = process.env.CONNECTVETS_API_KEY;
+
+const response = await fetch('https://api.connectvets.com.br/v1/notes', {
+  headers: {
+    'X-API-KEY': apiKey
+  }
+});
+```
+
+```python Python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+api_key = os.getenv('CONNECTVETS_API_KEY')
+
+headers = {'X-API-KEY': api_key}
+response = requests.get('https://api.connectvets.com.br/v1/notes', headers=headers)
+```
+</CodeGroup>
+
+### Rotação de Chaves
+
+<Accordion title="Rotação Automática">
+  - Configure expiração automática das API Keys
+  - Implemente sistema de rotação programática
+  - Monitore chaves próximas do vencimento
+  - Use webhooks para notificações de expiração
+</Accordion>
+
+<Accordion title="Rotação Manual">
+  - Atualize chaves regularmente (recomendado: a cada 90 dias)
+  - Mantenha múltiplas chaves durante transições
+  - Teste nova chave antes de revogar a anterior
+  - Documente cronograma de rotação
+</Accordion>
+
+### Monitoramento
+
+<Accordion title="Logs de Auditoria">
+  - Monitore uso de API Keys no dashboard
+  - Configure alertas para uso anômalo
+  - Revise acessos regularmente
+  - Implemente análise de comportamento
+</Accordion>
+
+<Accordion title="Rate Limiting">
+  - Respeite limites de taxa por API Key
+  - Implemente backoff exponencial
+  - Use circuit breakers para falhas
+  - Monitore métricas de uso
+</Accordion>
+
+## Troubleshooting
+
+### Erros Comuns
+
+<Accordion title="401 Unauthorized">
+  **Causa**: API Key inválida, expirada ou mal formatada
+  
+  **Soluções**:
+  - Verifique se a chave está correta
+  - Confirme que não expirou
+  - Valide o formato do header
+  - Teste com nova API Key
+</Accordion>
+
+<Accordion title="403 Forbidden">
+  **Causa**: API Key válida mas sem permissões necessárias
+  
+  **Soluções**:
+  - Verifique permissões da chave
+  - Use chave com nível adequado
+  - Contate administrador para upgrade
+  - Revise escopo da operação
+</Accordion>
+
+<Accordion title="429 Too Many Requests">
+  **Causa**: Excedeu limite de taxa da API Key
+  
+  **Soluções**:
+  - Implemente retry com backoff
+  - Distribua requisições no tempo
+  - Use múltiplas chaves se necessário
+  - Otimize frequência de chamadas
+</Accordion>
+
+### Testando Autenticação
+
+Verifique se sua API Key está funcionando:
+
+<CodeGroup>
+```bash Teste Rápido
+curl -X GET "https://api.connectvets.com.br/v1/auth/validate" \
+  -H "X-API-KEY: your_api_key" \
+  -H "Content-Type: application/json"
+```
+
+```javascript Validação
+const validateApiKey = async (apiKey) => {
+  try {
+    const response = await fetch('https://api.connectvets.com.br/v1/auth/validate', {
+      headers: {
+        'X-API-KEY': apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      console.log('✅ API Key válida');
+      return true;
+    } else {
+      console.log('❌ API Key inválida');
+      return false;
+    }
+  } catch (error) {
+    console.log('❌ Erro de conectividade');
+    return false;
+  }
+};
+```
+</CodeGroup>
+
+## Limites e Cotas
+
+### Por Tipo de Chave
+
+| Tipo | Requisições/minuto | Requisições/hora | Notas/mês |
+|------|-------------------|------------------|-----------|
+| **Visualizador** | 60 | 1,000 | - |
+| **Editor** | 100 | 2,000 | 500 |
+| **Administrador** | 200 | 5,000 | 2,000 |
+
+### Upgrading de Limites
+
+<CardGroup cols={2}>
+  <Card title="Contate Vendas" icon="phone" href="https://wa.me/5531888835141">
+    Para limites customizados e planos empresariais
+  </Card>
+  <Card title="Otimize Uso" icon="chart-line" href="/examples/advanced-filtering">
+    Aprenda a usar filtros e paginação eficientemente
+  </Card>
+</CardGroup>
+
+---
+
+<Tip>
+**Dúvidas sobre autenticação?** Nosso time está disponível no [Discord](https://discord.gg/uN4NxUGk) ou [WhatsApp](https://wa.me/5531888835141).
+</Tip> 

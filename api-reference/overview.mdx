@@ -1,0 +1,350 @@
+---
+title: "API Reference - Visão Geral"
+description: "Documentação completa da API ConnectVets Notes"
+---
+
+## Introdução
+
+A API ConnectVets Notes é uma API RESTful que permite integrar funcionalidades de transcrição e análise de consultas veterinárias em sua aplicação. Esta documentação fornece informações detalhadas sobre todos os endpoints disponíveis.
+
+## URL Base
+
+```
+https://api.connectvets.com.br/v1
+```
+
+## Autenticação
+
+Todas as requisições devem incluir o header `X-API-KEY` com sua chave de API:
+
+```bash
+X-API-KEY: cvn_live_your_api_key_here
+```
+
+<Card title="Obter API Key" icon="key" href="/concepts/api-keys">
+  Aprenda como criar e gerenciar suas chaves de API
+</Card>
+
+## Formato de Resposta
+
+Todas as respostas seguem um formato padronizado:
+
+```json
+{
+  "success": true,
+  "data": {
+    // Dados da resposta
+  },
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "per_page": 20,
+      "total": 100,
+      "total_pages": 5
+    }
+  }
+}
+```
+
+### Códigos de Status HTTP
+
+| Código | Descrição |
+|--------|-----------|
+| 200 | Requisição bem-sucedida |
+| 201 | Recurso criado com sucesso |
+| 400 | Requisição inválida |
+| 401 | Não autorizado (API key inválida) |
+| 403 | Proibido (sem permissão) |
+| 404 | Recurso não encontrado |
+| 429 | Muitas requisições (rate limit) |
+| 500 | Erro interno do servidor |
+
+## Estrutura de Erros
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Dados inválidos fornecidos",
+    "details": [
+      {
+        "field": "name",
+        "message": "Nome é obrigatório"
+      }
+    ]
+  }
+}
+```
+
+## Rate Limits
+
+| Tipo de API Key | Requests/min | Requests/hora |
+|-----------------|--------------|---------------|
+| Read | 60 | 1.000 |
+| Write | 100 | 2.000 |
+| Admin | 200 | 5.000 |
+
+### Headers de Rate Limit
+
+```bash
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1640995200
+```
+
+## Endpoints Principais
+
+### 📝 Notas
+
+<CardGroup cols={2}>
+  <Card title="Criar Nota" icon="plus" href="/api-reference/notes/create">
+    Upload de áudio para criar nova nota
+  </Card>
+  <Card title="Buscar Notas" icon="search" href="/api-reference/notes/list">
+    Listar e filtrar notas existentes
+  </Card>
+  <Card title="Obter Nota" icon="file-text" href="/api-reference/notes/get">
+    Detalhes de uma nota específica
+  </Card>
+  <Card title="Atualizar Nota" icon="edit" href="/api-reference/notes/update">
+    Modificar metadados de uma nota
+  </Card>
+</CardGroup>
+
+### 🔑 API Keys
+
+<CardGroup cols={2}>
+  <Card title="Listar API Keys" icon="list" href="/api-reference/api-keys/list">
+    Ver todas as chaves de API
+  </Card>
+  <Card title="Criar API Key" icon="plus" href="/api-reference/api-keys/create">
+    Gerar nova chave de API
+  </Card>
+  <Card title="Revogar API Key" icon="trash" href="/api-reference/api-keys/delete">
+    Desativar uma chave de API
+  </Card>
+</CardGroup>
+
+### 🔗 Webhooks
+
+<CardGroup cols={2}>
+  <Card title="Listar Webhooks" icon="list" href="/api-reference/webhooks/list">
+    Ver todos os webhooks configurados
+  </Card>
+  <Card title="Criar Webhook" icon="plus" href="/api-reference/webhooks/create">
+    Configurar nova URL de webhook
+  </Card>
+  <Card title="Atualizar Webhook" icon="edit" href="/api-reference/webhooks/update">
+    Modificar configurações de webhook
+  </Card>
+  <Card title="Deletar Webhook" icon="trash" href="/api-reference/webhooks/delete">
+    Remover webhook configurado
+  </Card>
+</CardGroup>
+
+## Paginação
+
+A API usa paginação baseada em cursor para grandes conjuntos de dados:
+
+```json
+{
+  "data": [...],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "per_page": 20,
+      "total": 100,
+      "total_pages": 5,
+      "has_next": true,
+      "has_prev": false
+    }
+  }
+}
+```
+
+### Parâmetros de Paginação
+
+| Parâmetro | Tipo | Padrão | Descrição |
+|-----------|------|---------|-----------|
+| `page` | integer | 1 | Página atual |
+| `per_page` | integer | 20 | Itens por página (máx: 100) |
+| `sort` | string | `created_at` | Campo para ordenação |
+| `order` | string | `desc` | Direção da ordenação (asc/desc) |
+
+## Filtros
+
+### Filtros Temporais
+
+```bash
+# Buscar notas criadas hoje
+GET /notes?created_at[gte]=2024-01-15T00:00:00Z
+
+# Buscar notas do último mês
+GET /notes?created_at[gte]=2024-01-01T00:00:00Z&created_at[lte]=2024-01-31T23:59:59Z
+```
+
+### Filtros por Status
+
+```bash
+# Apenas notas concluídas
+GET /notes?transcription_status=completed
+
+# Notas em processamento
+GET /notes?transcription_status=processing
+```
+
+### Filtros por Metadados
+
+```bash
+# Buscar por espécie
+GET /notes?metadata[species]=Canino
+
+# Buscar por veterinário
+GET /notes?metadata[doctor]=Dr. Silva
+```
+
+## Webhooks
+
+### Eventos Disponíveis
+
+| Evento | Descrição |
+|---------|-----------|
+| `note.created` | Nota criada com sucesso |
+| `note.processing` | Processamento iniciado |
+| `note.completed` | Transcrição concluída |
+| `note.failed` | Erro no processamento |
+| `note.updated` | Nota atualizada manualmente |
+
+### Payload do Webhook
+
+```json
+{
+  "type": "note.completed",
+  "data": {
+    "note": {
+      "id": "note_abc123",
+      "name": "Rex",
+      "transcription_status": "completed",
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:35:00Z",
+      "note_sections": [
+        {
+          "id": "section_123",
+          "title": "Anamnese",
+          "content": "Paciente apresenta...",
+          "order": 1
+        }
+      ]
+    }
+  },
+  "timestamp": "2024-01-15T10:35:00Z"
+}
+```
+
+## SDKs e Bibliotecas
+
+### JavaScript/Node.js
+
+```bash
+npm install connectvets-sdk
+```
+
+```javascript
+import { ConnectVets } from 'connectvets-sdk';
+
+const client = new ConnectVets('your_api_key');
+
+// Upload de áudio
+const note = await client.notes.create({
+  audio: audioFile,
+  name: 'Rex',
+  gender: 'male'
+});
+```
+
+### Python
+
+```bash
+pip install connectvets-python
+```
+
+```python
+from connectvets import ConnectVets
+
+client = ConnectVets('your_api_key')
+
+# Upload de áudio
+note = client.notes.create(
+    audio=open('audio.wav', 'rb'),
+    name='Rex',
+    gender='male'
+)
+```
+
+### cURL
+
+```bash
+curl -X POST "https://api.connectvets.com.br/v1/notes" \
+  -H "X-API-KEY: your_api_key" \
+  -F "audio=@consulta.wav" \
+  -F "name=Rex" \
+  -F "gender=male"
+```
+
+## Ambiente de Sandbox
+
+Para testes e desenvolvimento, use o ambiente de sandbox:
+
+```
+https://sandbox-api.connectvets.com.br/v1
+```
+
+- Use API keys com prefixo `cvn_test_`
+- Dados fictícios
+- Rate limits relaxados
+- Processamento acelerado para testes
+
+## Suporte
+
+<CardGroup cols={2}>
+  <Card title="Discord" icon="discord" href="https://discord.gg/uN4NxUGk">
+    Comunidade de desenvolvedores
+  </Card>
+  <Card title="WhatsApp" icon="whatsapp" href="https://wa.me/5531888835141">
+    Suporte técnico direto
+  </Card>
+  <Card title="Email" icon="envelope" href="mailto:dev@connectvets.com.br">
+    Suporte por email
+  </Card>
+  <Card title="GitHub" icon="github" href="https://github.com/connectvets/notes-api">
+    Exemplos e issues
+  </Card>
+</CardGroup>
+
+## Changelog
+
+### v1.2.0 (2024-02-01)
+- ✅ Novos filtros por metadados
+- ✅ Webhook `note.updated`
+- ✅ Suporte a arquivos M4A
+- 🔧 Melhorias na performance
+
+### v1.1.0 (2024-01-15)
+- ✅ Paginação baseada em cursor
+- ✅ Filtros temporais avançados
+- ✅ Rate limits por tipo de API key
+- 🔧 Correções de bugs menores
+
+### v1.0.0 (2024-01-01)
+- 🎉 Lançamento inicial
+- ✅ Upload de áudio
+- ✅ Transcrição automática
+- ✅ Webhooks básicos
+- ✅ API keys
+
+---
+
+<Tip>
+**Precisa de ajuda?** Consulte nossos [exemplos práticos](/examples/basic-integration) ou entre em contato no [Discord](https://discord.gg/uN4NxUGk).
+</Tip> 
