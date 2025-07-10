@@ -46,8 +46,8 @@
     }
   ],
   "topbarCtaButton": {
-    "name": "Contato",
-    "url": "https://wa.me/5531888835141",
+    "name": "Notes Web",
+    "url": "https://notes.connectvets.com.br",
     "style": "pill"
   },
   "tabs": [
@@ -67,7 +67,7 @@
     {
       "name": "WhatsApp",
       "icon": "whatsapp",
-      "url": "https://wa.me/5531888835141"
+      "url": "https://wa.me/553185127147"
     },
     {
       "name": "Discord",
