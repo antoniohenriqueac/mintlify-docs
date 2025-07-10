@@ -4,19 +4,26 @@ description: 'Entenda como funcionam as chaves de API para autenticação segura
 icon: 'key'
 ---
 
-As **API Keys** são credenciais que autenticam e autorizam acesso à API ConnectVets Notes. Cada chave possui permissões e limites específicos baseados no seu plano.
+As **API Keys** são credenciais que autenticam e autorizam acesso à API ConnectVets Notes. 
+
+<Info>
+**Importante**: O acesso à API ConnectVets Notes é **exclusivo do plano Enterprise**. Entre em contato conosco via [Discord](https://discord.gg/uN4NxUGk) para verificar sua elegibilidade e configurar seu acesso.
+</Info>
 
 ## Como Funcionam
 
 <Steps>
+  <Step title="Verificação de Elegibilidade">
+    Confirme que você é cliente do plano Enterprise - apenas clientes Enterprise têm acesso à API
+  </Step>
   <Step title="Solicitação">
-    Contate nossa equipe via [WhatsApp (+55 31 8883-5141)](https://wa.me/5531888835141) para solicitar acesso
+    Contate nossa equipe via [Discord](https://discord.gg/uN4NxUGk) para solicitar acesso
   </Step>
-  <Step title="Configuração">
-    Nossa equipe criará suas credenciais com limites adequados ao seu uso
+  <Step title="Configuração Personalizada">
+    Nossa equipe criará suas credenciais com limites de rate limiting personalizados para seu uso
   </Step>
-  <Step title="Entrega">
-    Você receberá sua API Key e instruções de uso por canal seguro
+  <Step title="Entrega Segura">
+    Você receberá sua API Key, informações sobre seus limites específicos e instruções de uso
   </Step>
   <Step title="Integração">
     Use a chave no header `X-API-KEY` em todas as requisições
@@ -25,16 +32,16 @@ As **API Keys** são credenciais que autenticam e autorizam acesso à API Connec
 
 ## Tipos de API Keys
 
-### Produção
+### Produção (Enterprise)
 - **Ambiente**: `https://api.connectvets.com.br/v1`
-- **Uso**: Aplicações em produção
-- **Rate Limiting**: Conforme plano contratado
-- **Suporte**: Prioritário
+- **Uso**: Aplicações em produção (clientes Enterprise)
+- **Rate Limiting**: Limites personalizados conforme necessidade do cliente
+- **Suporte**: Prioritário e dedicado
 
-### Teste/Desenvolvimento  
-- **Ambiente**: `https://api-dev.connectvets.com.br/v1`
-- **Uso**: Desenvolvimento e testes
-- **Rate Limiting**: Limitado para testes
+### Homologação (Enterprise)
+- **Ambiente**: `https://api-notes-h.connectvets.com.br/v1`
+- **Uso**: Testes e homologação (clientes Enterprise)
+- **Rate Limiting**: Limitado para ambiente de testes
 - **Suporte**: Via Discord
 
 ## Configuração
@@ -62,25 +69,18 @@ const response = await fetch('https://api.connectvets.com.br/v1/notes', {
 
 ## Limites e Cotas
 
-Cada API Key possui limites baseados no plano:
+<Warning>
+**Plano Enterprise Obrigatório**: O consumo da API ConnectVets Notes é exclusivo para clientes do plano Enterprise.
+</Warning>
 
-### Por Minuto
-- **Starter**: 10 requisições/min
-- **Professional**: 100 requisições/min  
-- **Enterprise**: 1000 requisições/min
-- **Custom**: Conforme necessidade
+Os limites de rate limiting são configurados individualmente para cada cliente Enterprise baseado em:
 
-### Por Hora
-- **Starter**: 100 requisições/hora
-- **Professional**: 1000 requisições/hora
-- **Enterprise**: 10000 requisições/hora
-- **Custom**: Conforme necessidade
+- Volume de uso esperado
+- Tipo de integração
+- Criticidade da aplicação
+- Horários de pico
 
-### Processamento de Áudio
-- **Starter**: 10 horas/mês
-- **Professional**: 100 horas/mês
-- **Enterprise**: 1000 horas/mês
-- **Custom**: Ilimitado
+**Para conhecer seus limites específicos**, entre em contato com nossa equipe via [Discord](https://discord.gg/uN4NxUGk).
 
 ## Monitoramento
 
@@ -119,7 +119,7 @@ Estamos desenvolvendo um dashboard para acompanhamento em tempo real:
    ```
 
 2. **Rotação Regular**
-   - Contate nossa equipe para rotacionar chaves periodicamente
+   - Contate nossa equipe via [Discord](https://discord.gg/uN4NxUGk) para rotacionar chaves periodicamente
    - Especialmente importante após vazamentos ou mudanças de equipe
 
 3. **Monitoramento**
@@ -157,7 +157,7 @@ Estamos desenvolvendo um dashboard para acompanhamento em tempo real:
 
 **Soluções:**
 - Verifique se sua chave tem permissões para o endpoint
-- Contate nossa equipe para upgrade de plano
+- Contate nossa equipe via [Discord](https://discord.gg/uN4NxUGk) para upgrade de plano
 
 ### Erro 429: Rate Limit
 
@@ -177,24 +177,30 @@ Estamos desenvolvendo um dashboard para acompanhamento em tempo real:
 ## Gerenciamento
 
 <Info>
-  **Importante**: API Keys não são gerenciadas via API. Todas as operações são feitas através de contato direto com nossa equipe.
+  **Importante**: API Keys não são gerenciadas via API. Todas as operações são feitas através de contato direto com nossa equipe via [Discord](https://discord.gg/uN4NxUGk).
 </Info>
 
 ### Para Solicitar Nova Chave
 
-1. **Contate via WhatsApp**: [+55 31 8883-5141](https://wa.me/5531888835141)
+<Note>
+**Pré-requisito**: Você deve ser cliente do plano Enterprise para ter acesso à API.
+</Note>
+
+1. **Contate via Discord**: [https://discord.gg/uN4NxUGk](https://discord.gg/uN4NxUGk)
 2. **Informe**:
-   - Nome da empresa/projeto
+   - Nome da empresa/projeto (cliente Enterprise)
    - Casos de uso esperados
    - Volume estimado de requisições
    - Ambiente (produção/desenvolvimento)
+   - Necessidades específicas de rate limiting
 
 ### Para Modificar Limites
 
-Entre em contato informando:
-- Justificativa para aumento
-- Métricas de uso atual
-- Projeções de crescimento
+Como cliente Enterprise, você pode solicitar ajustes nos seus limites de rate limiting. Entre em contato via [Discord](https://discord.gg/uN4NxUGk) informando:
+- Justificativa técnica para o ajuste
+- Métricas de uso atual da API
+- Projeções de crescimento de tráfego
+- Impacto nos negócios dos limites atuais
 
 ### Para Renovar ou Revogar
 
