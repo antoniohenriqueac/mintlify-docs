@@ -35,7 +35,7 @@ const CONNECTVETS_CONFIG = {
   apiKey: 'cvn_test_sua_chave_aqui',
   
   // URL base da API
-  baseUrl: 'https://api.connectvets.com.br/v1',
+  baseUrl: 'https://api.connectvets.com',
   
   // Configurações de retry
   maxRetries: 3,
@@ -171,288 +171,6 @@ window.ConnectVetsConfig = CONNECTVETS_CONFIG;
 </html>
 ```
 
-</CodeGroup>
-
-### 2. Lógica Principal
-
-<CodeGroup>
-
-```javascript app.js
-class ConnectVetsIntegration {
-  constructor(config) {
-    this.config = config;
-    this.currentNote = null;
-    this.pollingInterval = null;
-    
-    this.initializeEventListeners();
-  }
-
-  initializeEventListeners() {
-    // Upload de arquivo
-    document.getElementById('audioFile').addEventListener('change', this.handleFileSelect.bind(this));
-    
-    // Botão de upload
-    document.getElementById('uploadBtn').addEventListener('click', this.handleUpload.bind(this));
-    
-    // Validação de formulário
-    const requiredFields = ['patientName', 'species'];
-    requiredFields.forEach(fieldId => {
-      document.getElementById(fieldId).addEventListener('input', this.validateForm.bind(this));
-    });
-  }
-
-  handleFileSelect(event) {
-    const file = event.target.files[0];
-    const fileInfo = document.getElementById('fileInfo');
-    
-    if (file) {
-      // Validar arquivo
-      const validation = this.validateAudioFile(file);
-      
-      if (validation.valid) {
-        fileInfo.innerHTML = `
-          <div class="file-valid">
-            ✅ <strong>${file.name}</strong><br>
-            📏 ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
-            🕒 ~${Math.round(file.size / 16000 / 2)} segundos
-          </div>
-        `;
-        this.validateForm();
-      } else {
-        fileInfo.innerHTML = `
-          <div class="file-error">
-            ❌ ${validation.error}
-          </div>
-        `;
-        document.getElementById('uploadBtn').disabled = true;
-      }
-    }
-  }
-
-  validateAudioFile(file) {
-    const maxSize = this.config.audio.maxSizeMB * 1024 * 1024;
-    const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/m4a', 'audio/aac'];
-    
-    if (file.size > maxSize) {
-      return { valid: false, error: `Arquivo muito grande. Máximo: ${this.config.audio.maxSizeMB}MB` };
-    }
-    
-    if (!allowedTypes.includes(file.type)) {
-      return { valid: false, error: 'Formato não suportado. Use WAV, MP3 ou M4A' };
-    }
-    
-    return { valid: true };
-  }
-
-  validateForm() {
-    const audioFile = document.getElementById('audioFile').files[0];
-    const patientName = document.getElementById('patientName').value.trim();
-    const species = document.getElementById('species').value;
-    
-    const isValid = audioFile && patientName && species;
-    document.getElementById('uploadBtn').disabled = !isValid;
-  }
-
-  async handleUpload() {
-    try {
-      this.showStatusSection();
-      this.updateStatus('⏳', 'Enviando áudio...');
-      
-      // Coletar dados do formulário
-      const audioFile = document.getElementById('audioFile').files[0];
-      const metadata = this.collectMetadata();
-      
-      // Upload do áudio
-      const note = await this.uploadAudio(audioFile, metadata);
-      
-      if (note) {
-        this.currentNote = note;
-        this.updateStatus('🔄', 'Processando transcrição...');
-        
-        // Iniciar polling
-        this.startPolling(note.id);
-      }
-      
-    } catch (error) {
-      this.showError('Erro no upload', error.message);
-    }
-  }
-
-  collectMetadata() {
-    return {
-      name: document.getElementById('patientName').value.trim(),
-      gender: 'unidentified', // Pode ser expandido
-      external_id: `PATIENT_${Date.now()}`,
-      metadata: {
-        doctor: document.getElementById('doctorName').value.trim(),
-        species: document.getElementById('species').value,
-        consultation_type: document.getElementById('consultationType').value,
-        timestamp: new Date().toISOString()
-      }
-    };
-  }
-
-  async uploadAudio(audioFile, metadata) {
-    const formData = new FormData();
-    formData.append('audio', audioFile);
-    formData.append('name', metadata.name);
-    formData.append('gender', metadata.gender);
-    formData.append('external_id', metadata.external_id);
-    
-    // Adicionar metadados como JSON
-    if (metadata.metadata) {
-      formData.append('metadata', JSON.stringify(metadata.metadata));
-    }
-
-    const response = await fetch(`${this.config.baseUrl}/notes`, {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': this.config.apiKey
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || `HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
-    return result.data;
-  }
-
-  startPolling(noteId) {
-    let attempts = 0;
-    
-    this.pollingInterval = setInterval(async () => {
-      try {
-        attempts++;
-        
-        const note = await this.checkNoteStatus(noteId);
-        
-        if (note.transcription_status === 'completed') {
-          this.stopPolling();
-          this.showResults(note);
-        } else if (note.transcription_status === 'failed') {
-          this.stopPolling();
-          this.showError('Processamento falhou', 'Verifique a qualidade do áudio e tente novamente');
-        } else if (attempts >= this.config.polling.maxAttempts) {
-          this.stopPolling();
-          this.showError('Timeout', 'Processamento está demorando mais que o esperado');
-        }
-        
-        // Atualizar progresso
-        const progress = Math.min((attempts / this.config.polling.maxAttempts) * 100, 90);
-        this.updateProgress(progress);
-        
-      } catch (error) {
-        console.error('Erro no polling:', error);
-      }
-      
-    }, this.config.polling.intervalMs);
-  }
-
-  async checkNoteStatus(noteId) {
-    const response = await fetch(`${this.config.baseUrl}/notes/${noteId}`, {
-      headers: {
-        'X-API-KEY': this.config.apiKey
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
-    return result.data;
-  }
-
-  stopPolling() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
-    }
-  }
-
-  showStatusSection() {
-    document.getElementById('statusSection').style.display = 'block';
-    document.getElementById('resultsSection').style.display = 'none';
-    document.getElementById('errorSection').style.display = 'none';
-  }
-
-  updateStatus(indicator, text) {
-    document.getElementById('statusIndicator').textContent = indicator;
-    document.getElementById('statusText').textContent = text;
-  }
-
-  updateProgress(percentage) {
-    document.getElementById('progressFill').style.width = `${percentage}%`;
-  }
-
-  showResults(note) {
-    document.getElementById('statusSection').style.display = 'none';
-    document.getElementById('resultsSection').style.display = 'block';
-    
-    const container = document.getElementById('resultsContainer');
-    
-    let sectionsHTML = '';
-    if (note.note_sections && note.note_sections.length > 0) {
-      sectionsHTML = note.note_sections
-        .sort((a, b) => parseInt(a.order) - parseInt(b.order))
-        .map(section => `
-          <div class="result-section">
-            <h3>${section.title}</h3>
-            <p>${section.content || 'Sem conteúdo disponível'}</p>
-          </div>
-        `).join('');
-    }
-    
-    container.innerHTML = `
-      <div class="result-header">
-        <h3>✅ Processamento Concluído</h3>
-        <p><strong>Paciente:</strong> ${note.name}</p>
-        <p><strong>ID:</strong> ${note.id}</p>
-        <p><strong>Processado em:</strong> ${new Date(note.updated_at || note.created_at).toLocaleString()}</p>
-      </div>
-      
-      ${sectionsHTML || '<p>Aguardando análise das seções...</p>'}
-      
-      <div class="result-actions">
-        <button onclick="window.location.reload()" class="btn-secondary">
-          🔄 Nova Consulta
-        </button>
-      </div>
-    `;
-  }
-
-  showError(title, message) {
-    this.stopPolling();
-    
-    document.getElementById('statusSection').style.display = 'none';
-    document.getElementById('errorSection').style.display = 'block';
-    
-    document.getElementById('errorContainer').innerHTML = `
-      <div class="error-content">
-        <h3>${title}</h3>
-        <p>${message}</p>
-        <button onclick="window.location.reload()" class="btn-retry">
-          🔄 Tentar Novamente
-        </button>
-      </div>
-    `;
-  }
-}
-
-// Inicializar aplicação quando DOM estiver carregado
-document.addEventListener('DOMContentLoaded', () => {
-  if (window.ConnectVetsConfig) {
-    window.app = new ConnectVetsIntegration(window.ConnectVetsConfig);
-  } else {
-    console.error('Configuração não encontrada!');
-  }
-});
-```
-
 ```css styles.css
 /* Reset e configurações básicas */
 * {
@@ -487,32 +205,45 @@ header h1 {
     margin-bottom: 10px;
 }
 
+header p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
 /* Seções */
 section {
     background: white;
     border-radius: 12px;
     padding: 30px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
-/* Upload Section */
+section h2 {
+    margin-bottom: 20px;
+    color: #4a5568;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 10px;
+}
+
+/* Upload de arquivo */
 .file-upload {
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
 .file-label {
     display: inline-block;
     padding: 15px 30px;
-    background: #3b82f6;
+    background: #4299e1;
     color: white;
     border-radius: 8px;
     cursor: pointer;
     transition: background 0.3s;
+    font-weight: 500;
 }
 
 .file-label:hover {
-    background: #2563eb;
+    background: #3182ce;
 }
 
 #audioFile {
@@ -521,80 +252,79 @@ section {
 
 .file-info {
     margin-top: 15px;
-    padding: 15px;
-    border-radius: 8px;
+    padding: 10px;
+    background: #f7fafc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #4a5568;
 }
 
-.file-valid {
-    background: #ecfdf5;
-    border: 1px solid #10b981;
-    color: #065f46;
-}
-
-.file-error {
-    background: #fef2f2;
-    border: 1px solid #ef4444;
-    color: #991b1b;
-}
-
-/* Form */
+/* Formulário de metadados */
 .metadata-form {
-    margin-bottom: 30px;
+    margin: 20px 0;
+}
+
+.metadata-form h3 {
+    margin-bottom: 15px;
+    color: #2d3748;
 }
 
 .form-row {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 .form-row label {
     display: block;
     margin-bottom: 5px;
-    font-weight: 600;
+    font-weight: 500;
+    color: #4a5568;
 }
 
 .form-row input,
 .form-row select {
     width: 100%;
     padding: 12px;
-    border: 1px solid #d1d5db;
+    border: 2px solid #e2e8f0;
     border-radius: 6px;
     font-size: 16px;
+    transition: border-color 0.3s;
 }
 
 .form-row input:focus,
 .form-row select:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: #4299e1;
 }
 
-/* Buttons */
+/* Botão de upload */
 .upload-btn {
     width: 100%;
     padding: 15px;
-    background: #10b981;
+    background: #48bb78;
     color: white;
     border: none;
     border-radius: 8px;
-    font-size: 18px;
+    font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: all 0.3s;
 }
 
 .upload-btn:hover:not(:disabled) {
-    background: #059669;
+    background: #38a169;
+    transform: translateY(-2px);
 }
 
 .upload-btn:disabled {
-    background: #9ca3af;
+    background: #a0aec0;
     cursor: not-allowed;
+    transform: none;
 }
 
-/* Status Section */
+/* Status */
 .status-card {
     text-align: center;
-    padding: 30px;
+    padding: 20px;
 }
 
 .status-indicator {
@@ -604,203 +334,750 @@ section {
 
 .status-text {
     font-size: 1.2rem;
-    color: #6b7280;
     margin-bottom: 20px;
+    color: #4a5568;
 }
 
 .progress-bar {
     width: 100%;
     height: 8px;
-    background: #e5e7eb;
+    background: #e2e8f0;
     border-radius: 4px;
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #10b981);
+    background: #4299e1;
     border-radius: 4px;
     transition: width 0.3s ease;
     width: 0%;
 }
 
-/* Results Section */
-.result-header {
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #e5e7eb;
+/* Resultados */
+.results-container {
+    max-height: 600px;
+    overflow-y: auto;
 }
 
-.result-section {
+.note-section {
     margin-bottom: 25px;
     padding: 20px;
-    background: #f9fafb;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    border-left: 4px solid #3b82f6;
+    background: #f8fafc;
 }
 
-.result-section h3 {
-    color: #1f2937;
+.note-section h3 {
+    margin-bottom: 15px;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.note-section p {
+    line-height: 1.7;
+    color: #4a5568;
+}
+
+/* Erro */
+.error-container {
+    padding: 20px;
+    background: #fed7d7;
+    border: 1px solid #fc8181;
+    border-radius: 8px;
+    color: #c53030;
+}
+
+.error-container h3 {
     margin-bottom: 10px;
 }
 
-.result-section p {
-    color: #4b5563;
-    line-height: 1.7;
-}
-
-.result-actions {
-    margin-top: 30px;
-    text-align: center;
-}
-
-.btn-secondary {
-    padding: 12px 24px;
-    background: #6b7280;
-    color: white;
-    border: none;
+.error-details {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    background: #fff;
+    padding: 15px;
     border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.3s;
+    margin-top: 15px;
+    white-space: pre-wrap;
 }
 
-.btn-secondary:hover {
-    background: #4b5563;
-}
-
-/* Error Section */
-.error-content {
-    text-align: center;
-    padding: 30px;
-}
-
-.error-content h3 {
-    color: #dc2626;
-    margin-bottom: 15px;
-}
-
-.error-content p {
-    color: #6b7280;
-    margin-bottom: 20px;
-}
-
-.btn-retry {
-    padding: 12px 24px;
-    background: #dc2626;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.btn-retry:hover {
-    background: #b91c1c;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
+/* Responsivo */
+@media (max-width: 600px) {
     .container {
         padding: 10px;
-    }
-    
-    section {
-        padding: 20px;
     }
     
     header h1 {
         font-size: 2rem;
     }
+    
+    section {
+        padding: 20px;
+    }
+}
+
+/* Animações */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.pulsing {
+    animation: pulse 2s infinite;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn 0.5s ease-out;
 }
 ```
 
 </CodeGroup>
 
+### 2. Lógica Principal da Aplicação
+
+```javascript app.js
+// Cliente ConnectVets Notes
+class ConnectVetsClient {
+    constructor(config) {
+        this.config = config;
+        this.currentNoteId = null;
+        this.pollingInterval = null;
+    }
+
+    // Fazer requisição com retry automático
+    async request(endpoint, options = {}) {
+        const url = `${this.config.baseUrl}${endpoint}`;
+        
+        const requestOptions = {
+            ...options,
+            headers: {
+                'X-API-KEY': this.config.apiKey,
+                ...options.headers
+            }
+        };
+
+        let lastError;
+        
+        for (let attempt = 1; attempt <= this.config.maxRetries; attempt++) {
+            try {
+                console.log(`🔄 Tentativa ${attempt}/${this.config.maxRetries}: ${endpoint}`);
+                
+                const response = await fetch(url, requestOptions);
+                
+                if (response.ok) {
+                    return await response.json();
+                }
+                
+                // Tentar parsear erro
+                const errorData = await response.json().catch(() => ({}));
+                throw new ConnectVetsError(response.status, errorData);
+                
+            } catch (error) {
+                lastError = error;
+                
+                // Não retry em erros de cliente (4xx)
+                if (error.status && error.status >= 400 && error.status < 500) {
+                    break;
+                }
+                
+                // Última tentativa
+                if (attempt === this.config.maxRetries) {
+                    break;
+                }
+                
+                // Aguardar antes de tentar novamente
+                const delay = this.config.retryDelay * attempt;
+                console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+                await this.sleep(delay);
+            }
+        }
+        
+        throw lastError;
+    }
+
+    // Criar nova nota
+    async createNote(audioFile, metadata) {
+        const formData = new FormData();
+        formData.append('audio', audioFile);
+        formData.append('metadata', JSON.stringify(metadata));
+
+        return this.request('/notes', {
+            method: 'POST',
+            body: formData,
+            headers: {} // Não definir Content-Type para FormData
+        });
+    }
+
+    // Obter status da nota
+    async getNote(noteId) {
+        return this.request(`/notes/${noteId}`);
+    }
+
+    // Iniciar monitoramento de status
+    startPolling(noteId, onStatusUpdate, onComplete, onError) {
+        this.currentNoteId = noteId;
+        let attempts = 0;
+
+        const poll = async () => {
+            try {
+                attempts++;
+                console.log(`📊 Verificando status (tentativa ${attempts})...`);
+                
+                const note = await this.getNote(noteId);
+                
+                // Atualizar interface
+                onStatusUpdate(note.status, attempts);
+                
+                // Verificar se processamento terminou
+                if (note.status === 'completed') {
+                    this.stopPolling();
+                    onComplete(note);
+                } else if (note.status === 'failed') {
+                    this.stopPolling();
+                    onError(new Error(note.error_message || 'Processamento falhou'));
+                } else if (attempts >= this.config.polling.maxAttempts) {
+                    this.stopPolling();
+                    onError(new Error('Timeout: Processamento demorou mais que esperado'));
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao verificar status:', error);
+                this.stopPolling();
+                onError(error);
+            }
+        };
+
+        // Primeira verificação imediata
+        poll();
+        
+        // Agendar verificações periódicas
+        this.pollingInterval = setInterval(poll, this.config.polling.intervalMs);
+    }
+
+    // Parar monitoramento
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
+    }
+
+    // Helper: sleep
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// Classe de erro customizada
+class ConnectVetsError extends Error {
+    constructor(status, errorData) {
+        const message = errorData.error?.message || errorData.message || 'Erro desconhecido';
+        super(message);
+        
+        this.name = 'ConnectVetsError';
+        this.status = status;
+        this.code = errorData.error?.code || 'unknown_error';
+        this.details = errorData.error?.details || {};
+    }
+}
+
+// Controlador da aplicação
+class App {
+    constructor() {
+        this.client = new ConnectVetsClient(window.ConnectVetsConfig);
+        this.currentFile = null;
+        this.initializeUI();
+    }
+
+    initializeUI() {
+        // Elementos DOM
+        this.audioFileInput = document.getElementById('audioFile');
+        this.fileInfo = document.getElementById('fileInfo');
+        this.uploadBtn = document.getElementById('uploadBtn');
+        this.statusSection = document.getElementById('statusSection');
+        this.resultsSection = document.getElementById('resultsSection');
+        this.errorSection = document.getElementById('errorSection');
+
+        // Event listeners
+        this.audioFileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        this.uploadBtn.addEventListener('click', () => this.handleUpload());
+
+        // Verificar campos obrigatórios
+        const requiredFields = ['patientName', 'doctorName', 'species'];
+        requiredFields.forEach(fieldId => {
+            document.getElementById(fieldId).addEventListener('input', () => this.validateForm());
+        });
+    }
+
+    // Validar arquivo selecionado
+    handleFileSelect(event) {
+        const file = event.target.files[0];
+        
+        if (!file) {
+            this.currentFile = null;
+            this.fileInfo.innerHTML = '';
+            this.validateForm();
+            return;
+        }
+
+        // Validar arquivo
+        const validation = this.validateAudioFile(file);
+        
+        if (validation.valid) {
+            this.currentFile = file;
+            this.fileInfo.innerHTML = `
+                <div style="color: #38a169;">
+                    ✅ <strong>${file.name}</strong><br>
+                    📊 Tamanho: ${this.formatFileSize(file.size)}<br>
+                    🎵 Tipo: ${file.type || 'Desconhecido'}
+                </div>
+            `;
+        } else {
+            this.currentFile = null;
+            this.fileInfo.innerHTML = `
+                <div style="color: #e53e3e;">
+                    ❌ ${validation.error}
+                </div>
+            `;
+        }
+        
+        this.validateForm();
+    }
+
+    // Validar arquivo de áudio
+    validateAudioFile(file) {
+        const config = this.client.config.audio;
+        
+        // Verificar tamanho
+        const maxSize = config.maxSizeMB * 1024 * 1024;
+        if (file.size > maxSize) {
+            return {
+                valid: false,
+                error: `Arquivo muito grande. Máximo: ${config.maxSizeMB} MB`
+            };
+        }
+
+        if (file.size < 1024) {
+            return {
+                valid: false,
+                error: 'Arquivo muito pequeno. Mínimo: 1 KB'
+            };
+        }
+
+        // Verificar formato
+        const extension = file.name.toLowerCase().split('.').pop();
+        if (!config.supportedFormats.includes(extension)) {
+            return {
+                valid: false,
+                error: `Formato não suportado. Use: ${config.supportedFormats.join(', ')}`
+            };
+        }
+
+        return { valid: true };
+    }
+
+    // Validar formulário
+    validateForm() {
+        const patientName = document.getElementById('patientName').value.trim();
+        const doctorName = document.getElementById('doctorName').value.trim();
+        const species = document.getElementById('species').value;
+        
+        const isValid = this.currentFile && patientName && doctorName && species;
+        this.uploadBtn.disabled = !isValid;
+    }
+
+    // Coletar metadados do formulário
+    getMetadata() {
+        return {
+            patient_name: document.getElementById('patientName').value.trim(),
+            doctor_name: document.getElementById('doctorName').value.trim(),
+            species: document.getElementById('species').value,
+            consultation_type: document.getElementById('consultationType').value,
+            consultation_date: new Date().toISOString(),
+            integration_source: 'basic_web_example'
+        };
+    }
+
+    // Processar upload
+    async handleUpload() {
+        if (!this.currentFile) return;
+
+        try {
+            this.showStatus();
+            this.updateStatus('⏳', 'Enviando áudio...', 10);
+
+            const metadata = this.getMetadata();
+            
+            console.log('📤 Criando nota...', {
+                fileName: this.currentFile.name,
+                fileSize: this.currentFile.size,
+                metadata
+            });
+
+            // Criar nota
+            const note = await this.client.createNote(this.currentFile, metadata);
+            
+            console.log('✅ Nota criada:', note);
+            this.updateStatus('🔄', 'Processando áudio...', 30);
+
+            // Iniciar monitoramento
+            this.client.startPolling(
+                note.id,
+                (status, attempts) => this.onStatusUpdate(status, attempts),
+                (note) => this.onProcessingComplete(note),
+                (error) => this.onProcessingError(error)
+            );
+
+        } catch (error) {
+            console.error('❌ Erro no upload:', error);
+            this.onProcessingError(error);
+        }
+    }
+
+    // Atualizar status durante processamento
+    onStatusUpdate(status, attempts) {
+        const statusMessages = {
+            'pending': '⏳ Na fila de processamento...',
+            'processing': '🔄 Processando áudio...',
+            'transcribing': '📝 Transcrevendo áudio...',
+            'analyzing': '🧠 Analisando conteúdo...',
+            'structuring': '📋 Estruturando informações...'
+        };
+
+        const message = statusMessages[status] || `🔄 Status: ${status}`;
+        const progress = Math.min(30 + (attempts * 5), 90);
+        
+        this.updateStatus('🔄', message, progress);
+    }
+
+    // Processamento concluído com sucesso
+    onProcessingComplete(note) {
+        console.log('✅ Processamento concluído:', note);
+        
+        this.updateStatus('✅', 'Processamento concluído!', 100);
+        
+        setTimeout(() => {
+            this.hideStatus();
+            this.showResults(note);
+        }, 1500);
+    }
+
+    // Erro no processamento
+    onProcessingError(error) {
+        console.error('❌ Erro no processamento:', error);
+        
+        this.hideStatus();
+        this.showError(error);
+    }
+
+    // Mostrar seção de status
+    showStatus() {
+        this.hideAllSections();
+        this.statusSection.style.display = 'block';
+        this.statusSection.classList.add('slide-in');
+    }
+
+    // Atualizar indicadores de status
+    updateStatus(indicator, text, progress) {
+        document.getElementById('statusIndicator').textContent = indicator;
+        document.getElementById('statusText').textContent = text;
+        document.getElementById('progressFill').style.width = `${progress}%`;
+        
+        // Adicionar animação de pulse se processando
+        const statusIndicator = document.getElementById('statusIndicator');
+        if (indicator === '🔄') {
+            statusIndicator.classList.add('pulsing');
+        } else {
+            statusIndicator.classList.remove('pulsing');
+        }
+    }
+
+    // Esconder seção de status
+    hideStatus() {
+        this.statusSection.style.display = 'none';
+    }
+
+    // Mostrar resultados
+    showResults(note) {
+        this.hideAllSections();
+        
+        const container = document.getElementById('resultsContainer');
+        container.innerHTML = this.renderResults(note);
+        
+        this.resultsSection.style.display = 'block';
+        this.resultsSection.classList.add('slide-in');
+    }
+
+    // Renderizar resultados
+    renderResults(note) {
+        let html = `
+            <div class="note-section">
+                <h3>📋 Informações da Nota</h3>
+                <p><strong>ID:</strong> ${note.id}</p>
+                <p><strong>Status:</strong> ${note.status}</p>
+                <p><strong>Criado em:</strong> ${new Date(note.created_at).toLocaleString('pt-BR')}</p>
+                <p><strong>Processado em:</strong> ${new Date(note.updated_at).toLocaleString('pt-BR')}</p>
+            </div>
+        `;
+
+        if (note.sections && note.sections.length > 0) {
+            note.sections.forEach(section => {
+                const icons = {
+                    'summary': '📄',
+                    'diagnosis': '🔍',
+                    'treatment': '💊',
+                    'prescription': '📋',
+                    'observations': '📝',
+                    'recommendations': '💡'
+                };
+
+                const icon = icons[section.type] || '📝';
+                const title = this.formatSectionTitle(section.type);
+
+                html += `
+                    <div class="note-section">
+                        <h3>${icon} ${title}</h3>
+                        <p>${section.content}</p>
+                    </div>
+                `;
+            });
+        }
+
+        if (note.transcript) {
+            html += `
+                <div class="note-section">
+                    <h3>🎙️ Transcrição Completa</h3>
+                    <p>${note.transcript}</p>
+                </div>
+            `;
+        }
+
+        html += `
+            <div class="note-section">
+                <button onclick="app.reset()" class="upload-btn">
+                    🔄 Processar Nova Consulta
+                </button>
+            </div>
+        `;
+
+        return html;
+    }
+
+    // Mostrar erro
+    showError(error) {
+        this.hideAllSections();
+        
+        const container = document.getElementById('errorContainer');
+        container.innerHTML = `
+            <h3>Detalhes do Erro</h3>
+            <p><strong>Mensagem:</strong> ${error.message}</p>
+            ${error.code ? `<p><strong>Código:</strong> ${error.code}</p>` : ''}
+            ${error.status ? `<p><strong>Status HTTP:</strong> ${error.status}</p>` : ''}
+            
+            <div class="error-details">
+${JSON.stringify(error.details || {}, null, 2)}
+            </div>
+            
+            <button onclick="app.reset()" class="upload-btn" style="background: #e53e3e; margin-top: 20px;">
+                🔄 Tentar Novamente
+            </button>
+        `;
+        
+        this.errorSection.style.display = 'block';
+        this.errorSection.classList.add('slide-in');
+    }
+
+    // Esconder todas as seções
+    hideAllSections() {
+        this.statusSection.style.display = 'none';
+        this.resultsSection.style.display = 'none';
+        this.errorSection.style.display = 'none';
+    }
+
+    // Reset da aplicação
+    reset() {
+        // Parar polling se ativo
+        this.client.stopPolling();
+        
+        // Limpar formulário
+        document.getElementById('audioFile').value = '';
+        document.getElementById('patientName').value = '';
+        document.getElementById('doctorName').value = '';
+        document.getElementById('species').value = '';
+        document.getElementById('consultationType').value = 'consulta';
+        
+        // Limpar estado
+        this.currentFile = null;
+        this.fileInfo.innerHTML = '';
+        
+        // Esconder seções
+        this.hideAllSections();
+        
+        // Revalidar formulário
+        this.validateForm();
+    }
+
+    // Helpers
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    formatSectionTitle(type) {
+        const titles = {
+            'summary': 'Resumo da Consulta',
+            'diagnosis': 'Diagnóstico',
+            'treatment': 'Tratamento',
+            'prescription': 'Prescrição',
+            'observations': 'Observações',
+            'recommendations': 'Recomendações'
+        };
+        return titles[type] || type.charAt(0).toUpperCase() + type.slice(1);
+    }
+}
+
+// Inicializar aplicação quando DOM estiver pronto
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new App();
+    console.log('🚀 Aplicação ConnectVets inicializada');
+});
+```
+
 ## Como Usar
 
 ### 1. Configuração
 
-1. **Clone ou baixe** os arquivos do exemplo
-2. **Edite** `config.js` e substitua `'cvn_test_sua_chave_aqui'` pela sua API key real
-3. **Abra** `index.html` em um navegador moderno
+```bash
+# 1. Criar diretório do projeto
+mkdir connectvets-basic-example
+cd connectvets-basic-example
 
-### 2. Teste da Aplicação
+# 2. Copiar os arquivos acima
+# (index.html, app.js, styles.css, config.js)
 
-1. **Escolha um arquivo** de áudio (WAV, MP3, M4A)
-2. **Preencha** as informações da consulta
-3. **Clique** em "Processar Áudio"
-4. **Aguarde** o processamento (pode levar alguns minutos)
-5. **Veja** os resultados estruturados
+# 3. Editar config.js com sua API key
+# Substitua 'cvn_test_sua_chave_aqui' pela sua chave real
+```
 
-## Funcionalidades Incluídas
+### 2. Executar Aplicação
 
-### ✅ Upload de Áudio
+```bash
+# Servir arquivos localmente (escolha uma opção):
+
+# Opção 1: Python
+python -m http.server 8000
+
+# Opção 2: Node.js (http-server)
+npx http-server -p 8000
+
+# Opção 3: PHP
+php -S localhost:8000
+
+# Acesse: http://localhost:8000
+```
+
+### 3. Testar Integração
+
+<Steps>
+  <Step title="Abrir no Navegador">
+    Acesse `http://localhost:8000` no seu navegador
+  </Step>
+  
+  <Step title="Selecionar Áudio">
+    Clique em **"Escolher arquivo de áudio"** e selecione um arquivo MP3, WAV, M4A ou AAC
+  </Step>
+  
+  <Step title="Preencher Dados">
+    Complete as informações da consulta:
+    - Nome do paciente (ex: "Rex")
+    - Nome do veterinário (ex: "Dr. Silva") 
+    - Espécie (ex: "Canino")
+    - Tipo de consulta
+  </Step>
+  
+  <Step title="Processar">
+    Clique em **"Processar Áudio"** e aguarde o resultado
+  </Step>
+</Steps>
+
+## Funcionalidades Implementadas
+
+### ✅ Upload de Arquivo
 - Validação de formato e tamanho
-- Preview de informações do arquivo
-- Suporte a múltiplos formatos
+- Preview das informações do arquivo
+- Suporte a MP3, WAV, M4A, AAC
 
-### ✅ Metadados Estruturados
-- Nome do paciente
-- Espécie animal
-- Veterinário responsável
-- Tipo de consulta
+### ✅ Formulário de Metadados
+- Campos obrigatórios com validação
+- Informações da consulta estruturadas
+- Tipos de consulta pré-definidos
 
-### ✅ Monitoramento em Tempo Real
-- Status visual do processamento
-- Barra de progresso
-- Polling automático
-
-### ✅ Exibição de Resultados
-- Seções estruturadas (Anamnese, Exame, Diagnóstico, Tratamento)
-- Interface limpa e organizada
-- Opção de processar nova consulta
+### ✅ Processamento Assíncrono
+- Upload não-bloqueante
+- Monitoramento de status em tempo real
+- Barra de progresso animada
 
 ### ✅ Tratamento de Erros
-- Validação de arquivos
+- Retry automático para falhas temporárias
 - Mensagens de erro claras
-- Opção de retry
+- Detalhes técnicos para debug
+
+### ✅ Exibição de Resultados
+- Seções estruturadas (resumo, diagnóstico, tratamento)
+- Transcrição completa
+- Interface intuitiva com ícones
+
+### ✅ Interface Responsiva
+- Design moderno e limpo
+- Animações suaves
+- Compatível com dispositivos móveis
 
 ## Próximos Passos
 
 <CardGroup cols={2}>
-  <Card title="Webhooks" icon="webhook" href="/examples/webhook-handling">
-    Implementar notificações em tempo real
+  <Card
+    title="Filtros Avançados"
+    icon="filter"
+    href="/examples/advanced-filtering"
+  >
+    Implementar busca e filtros nas notas
   </Card>
-  <Card title="Filtros Avançados" icon="filter" href="/examples/advanced-filtering">
-    Buscar e filtrar notas
+  <Card
+    title="Webhooks"
+    icon="webhook"
+    href="/examples/webhook-handling"
+  >
+    Notificações automáticas de processamento
   </Card>
-  <Card title="Integração Backend" icon="server" href="/integration/onboarding">
-    Implementar no seu sistema
+  <Card
+    title="Requisitos de Áudio"
+    icon="microphone"
+    href="/integration/audio-requirements"
+  >
+    Melhorar qualidade do áudio
   </Card>
-  <Card title="API Reference" icon="book" href="/api-reference/overview">
-    Documentação completa
+  <Card
+    title="Tratamento de Erros"
+    icon="alert-triangle"
+    href="/integration/error-handling"
+  >
+    Implementar estratégias robustas
   </Card>
-</CardGroup>
-
-## Customizações Possíveis
-
-### 📱 Interface Mobile
-- Adicionar gravação de áudio direto no navegador
-- Otimizar layout para telas pequenas
-- Implementar Progressive Web App (PWA)
-
-### 🔗 Integração com Sistemas
-- Conectar com banco de dados de pacientes
-- Sincronizar com sistemas de prontuário
-- Exportar resultados em PDF
-
-### 🎨 Melhorias de UX
-- Drag & drop para upload
-- Preview de áudio antes do envio
-- Histórico de consultas processadas
-
-### 🔒 Segurança
-- Criptografia de arquivos sensíveis
-- Autenticação de usuários
-- Logs de auditoria
-
----
-
-<Tip>
-**Quer personalizar?** Este exemplo é um ponto de partida. Adapte conforme suas necessidades específicas!
-</Tip> 
+</CardGroup> 

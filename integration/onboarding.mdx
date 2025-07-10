@@ -78,14 +78,14 @@ live     = Ambiente (live/test)
 ```bash
 # .env (NUNCA commitar este arquivo!)
 CONNECTVETS_API_KEY=cvn_test_sua_chave_aqui
-CONNECTVETS_BASE_URL=https://api.connectvets.com.br
+CONNECTVETS_BASE_URL=https://api.connectvets.com
 CONNECTVETS_ENVIRONMENT=development
 ```
 
 ```bash
 # .env.example (pode commitar)
 CONNECTVETS_API_KEY=your_api_key_here
-CONNECTVETS_BASE_URL=https://api.connectvets.com.br
+CONNECTVETS_BASE_URL=https://api.connectvets.com
 CONNECTVETS_ENVIRONMENT=development
 ```
 
@@ -96,7 +96,7 @@ CONNECTVETS_ENVIRONMENT=development
 ```javascript JavaScript/Node.js
 // Testar conectividade com a API
 const CONNECTVETS_API_KEY = process.env.CONNECTVETS_API_KEY;
-const BASE_URL = 'https://api.connectvets.com.br/v1';
+const BASE_URL = 'https://api.connectvets.com';
 
 async function testConnection() {
   try {
@@ -130,7 +130,7 @@ import requests
 
 # Configuração
 API_KEY = os.getenv('CONNECTVETS_API_KEY')
-BASE_URL = 'https://api.connectvets.com.br/v1'
+BASE_URL = 'https://api.connectvets.com'
 
 def test_connection():
     """Testar conectividade com a API"""
@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
 ```bash cURL
 # Teste básico via curl
-curl -X GET "https://api.connectvets.com.br/v1/notes" \
+curl -X GET "https://api.connectvets.com/notes" \
   -H "X-API-KEY: cvn_test_sua_chave_aqui" \
   -H "Content-Type: application/json" \
   --verbose
@@ -185,8 +185,8 @@ type NotesResponse struct {
 
 type Note struct {
     ID       string `json:"id"`
-    Name     string `json:"name"`
-    Status   string `json:"transcription_status"`
+    Content  string `json:"content"`
+    Status   string `json:"status"`
 }
 
 func testConnection() error {
@@ -195,7 +195,7 @@ func testConnection() error {
         return fmt.Errorf("CONNECTVETS_API_KEY não configurada")
     }
     
-    req, err := http.NewRequest("GET", "https://api.connectvets.com.br/v1/notes", nil)
+    req, err := http.NewRequest("GET", "https://api.connectvets.com/notes", nil)
     if err != nil {
         return err
     }
@@ -211,359 +211,511 @@ func testConnection() error {
     defer resp.Body.Close()
     
     if resp.StatusCode == 200 {
+        body, _ := io.ReadAll(resp.Body)
+        var notesResp NotesResponse
+        json.Unmarshal(body, &notesResp)
+        
         fmt.Println("✅ Conexão estabelecida!")
-        var notes NotesResponse
-        json.NewDecoder(resp.Body).Decode(&notes)
-        fmt.Printf("📋 Encontradas %d notas\n", len(notes.Data))
+        fmt.Printf("📋 Encontradas %d notas\n", len(notesResp.Data))
+        return nil
     } else {
-        fmt.Printf("❌ Erro na conexão: %d\n", resp.StatusCode)
+        return fmt.Errorf("❌ Erro na conexão: %d", resp.StatusCode)
     }
-    
-    return nil
 }
 
 func main() {
     if err := testConnection(); err != nil {
-        fmt.Printf("Erro: %v\n", err)
+        fmt.Println(err)
     }
 }
 ```
 
 </CodeGroup>
 
-### Passo 4: Envio de Áudio
+## Integração Básica
+
+### Enviar Primeira Nota
 
 <CodeGroup>
 
 ```javascript JavaScript
-async function uploadAudio(audioFile, metadata) {
+async function createNote(audioFile, metadata = {}) {
   const formData = new FormData();
+  
+  // Arquivo de áudio
   formData.append('audio', audioFile);
-  formData.append('name', metadata.patientName);
-  formData.append('gender', metadata.gender || 'unidentified');
-  formData.append('external_id', metadata.externalId || '');
+  
+  // Metadados da consulta
+  formData.append('metadata', JSON.stringify({
+    patient_name: metadata.patientName || 'Teste',
+    doctor_name: metadata.doctorName || 'Dr. Teste',
+    consultation_date: metadata.date || new Date().toISOString(),
+    species: metadata.species || 'Canino',
+    ...metadata
+  }));
   
   try {
     const response = await fetch(`${BASE_URL}/notes`, {
       method: 'POST',
       headers: {
         'X-API-KEY': CONNECTVETS_API_KEY
+        // NÃO definir Content-Type para FormData
       },
       body: formData
     });
     
     if (response.ok) {
       const note = await response.json();
-      console.log('✅ Áudio enviado com sucesso!');
-      console.log('📋 ID da nota:', note.data.id);
-      return note.data;
+      console.log('✅ Nota criada:', note.id);
+      console.log('🔄 Status:', note.status);
+      return note;
     } else {
-      console.error('❌ Erro no envio:', response.status);
+      const error = await response.json();
+      console.error('❌ Erro ao criar nota:', error);
     }
   } catch (error) {
-    console.error('❌ Erro:', error.message);
+    console.error('❌ Erro de rede:', error);
   }
 }
 
 // Exemplo de uso
-const audioFile = new File([audioBlob], 'consulta.wav', { type: 'audio/wav' });
-const metadata = {
-  patientName: 'Rex',
-  gender: 'male',
-  externalId: 'PET_001'
-};
-
-uploadAudio(audioFile, metadata);
+const audioInput = document.getElementById('audio-input');
+audioInput.addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    createNote(file, {
+      patientName: 'Rex',
+      doctorName: 'Dr. Silva',
+      species: 'Canino'
+    });
+  }
+});
 ```
 
 ```python Python
 import requests
+import json
 
-def upload_audio(audio_file_path, metadata):
-    """Upload de arquivo de áudio"""
-    try:
-        with open(audio_file_path, 'rb') as audio_file:
-            files = {'audio': audio_file}
-            data = {
-                'name': metadata.get('patient_name', ''),
-                'gender': metadata.get('gender', 'unidentified'),
-                'external_id': metadata.get('external_id', '')
-            }
-            
-            headers = {'X-API-KEY': API_KEY}
-            
-            response = requests.post(
-                f'{BASE_URL}/notes',
-                headers=headers,
-                files=files,
-                data=data
-            )
-            
-            if response.status_code == 201:
-                note = response.json()
-                print('✅ Áudio enviado com sucesso!')
-                print(f'📋 ID da nota: {note["data"]["id"]}')
-                return note['data']
-            else:
-                print(f'❌ Erro no envio: {response.status_code}')
-                print(response.text)
-                
-    except Exception as error:
-        print(f'❌ Erro: {error}')
+def create_note(audio_file_path, metadata=None):
+    """Criar uma nova nota com arquivo de áudio"""
+    if metadata is None:
+        metadata = {}
+    
+    # Dados padrão
+    default_metadata = {
+        'patient_name': 'Teste',
+        'doctor_name': 'Dr. Teste', 
+        'consultation_date': '2024-02-14T10:30:00Z',
+        'species': 'Canino'
+    }
+    default_metadata.update(metadata)
+    
+    headers = {
+        'X-API-KEY': API_KEY
+    }
+    
+    with open(audio_file_path, 'rb') as audio_file:
+        files = {
+            'audio': audio_file,
+            'metadata': (None, json.dumps(default_metadata))
+        }
+        
+        response = requests.post(
+            f'{BASE_URL}/notes',
+            headers=headers,
+            files=files
+        )
+    
+    if response.status_code == 201:
+        note = response.json()
+        print(f'✅ Nota criada: {note["id"]}')
+        print(f'🔄 Status: {note["status"]}')
+        return note
+    else:
+        print(f'❌ Erro ao criar nota: {response.status_code}')
+        print(response.text)
+        return None
 
 # Exemplo de uso
-metadata = {
-    'patient_name': 'Rex',
-    'gender': 'male',
-    'external_id': 'PET_001'
-}
-
-upload_audio('path/to/audio.wav', metadata)
+note = create_note(
+    'caminho/para/audio.mp3',
+    {
+        'patient_name': 'Rex',
+        'doctor_name': 'Dr. Silva',
+        'species': 'Canino'
+    }
+)
 ```
 
 </CodeGroup>
 
-### Passo 5: Monitorar Processamento
+### Acompanhar Processamento
 
-<CodeGroup>
-
-```javascript JavaScript
-async function checkNoteStatus(noteId) {
-  try {
-    const response = await fetch(`${BASE_URL}/notes/${noteId}`, {
-      headers: {
-        'X-API-KEY': CONNECTVETS_API_KEY
+```javascript
+async function pollNoteStatus(noteId, maxAttempts = 30) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(`${BASE_URL}/notes/${noteId}`, {
+        headers: {
+          'X-API-KEY': CONNECTVETS_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const note = await response.json();
+        
+        console.log(`📊 Tentativa ${attempt}: Status ${note.status}`);
+        
+        switch (note.status) {
+          case 'completed':
+            console.log('✅ Processamento concluído!');
+            console.log('📝 Conteúdo:', note.sections);
+            return note;
+            
+          case 'failed':
+            console.log('❌ Processamento falhou');
+            console.log('💬 Erro:', note.error_message);
+            return note;
+            
+          case 'processing':
+          case 'transcribing':
+          case 'analyzing':
+            console.log('⏳ Ainda processando...');
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Aguardar 2s
+            break;
+            
+          default:
+            console.log(`⏳ Status: ${note.status}`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
+    } catch (error) {
+      console.error(`❌ Erro na tentativa ${attempt}:`, error);
+    }
+  }
+  
+  console.log('⚠️ Timeout: Processamento demorou mais que esperado');
+  return null;
+}
+
+// Usar após criar nota
+createNote(audioFile).then(note => {
+  if (note) {
+    pollNoteStatus(note.id);
+  }
+});
+```
+
+## Configuração de Webhooks
+
+Para receber notificações automáticas quando as notas ficarem prontas:
+
+### 1. Configurar Endpoint
+
+```javascript
+// Endpoint para receber webhooks
+app.post('/webhooks/connectvets', express.raw({ type: 'application/json' }), (req, res) => {
+  const event = req.body;
+  
+  console.log('🔔 Webhook recebido:', event.type);
+  
+  switch (event.type) {
+    case 'note.completed':
+      handleNoteCompleted(event.data);
+      break;
+      
+    case 'note.failed':
+      handleNoteFailed(event.data);
+      break;
+      
+    default:
+      console.log(`❓ Evento desconhecido: ${event.type}`);
+  }
+  
+  res.status(200).send('OK');
+});
+
+function handleNoteCompleted(noteData) {
+  console.log('✅ Nota processada:', noteData.id);
+  console.log('📝 Seções:', noteData.sections.length);
+  
+  // Integrar com seu sistema
+  updatePatientRecord(noteData);
+  notifyVeterinarian(noteData);
+}
+
+function handleNoteFailed(noteData) {
+  console.log('❌ Falha no processamento:', noteData.id);
+  console.log('💬 Erro:', noteData.error_message);
+  
+  // Notificar erro
+  alertAdministrator(noteData);
+}
+```
+
+### 2. Registrar Webhook
+
+```javascript
+async function registerWebhook(url, events = ['note.completed', 'note.failed']) {
+  try {
+    const response = await fetch(`${BASE_URL}/webhooks`, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': CONNECTVETS_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        url: url,
+        events: events,
+        active: true
+      })
     });
     
     if (response.ok) {
-      const note = await response.json();
-      return note.data;
+      const webhook = await response.json();
+      console.log('✅ Webhook registrado:', webhook.id);
+      return webhook;
     }
   } catch (error) {
-    console.error('Erro ao verificar status:', error);
+    console.error('❌ Erro ao registrar webhook:', error);
   }
 }
 
-async function waitForCompletion(noteId, maxWaitTime = 300000) {
-  const startTime = Date.now();
+// Registrar webhook
+registerWebhook('https://meuapp.com/webhooks/connectvets');
+```
+
+## Exemplo de Aplicação Completa
+
+### Setup Inicial
+
+```javascript
+// config/connectvets.js
+class ConnectVetsClient {
+  constructor(apiKey, baseUrl = 'https://api.connectvets.com') {
+    this.apiKey = apiKey;
+    this.baseUrl = baseUrl;
+  }
   
-  while (Date.now() - startTime < maxWaitTime) {
-    const note = await checkNoteStatus(noteId);
+  async request(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
+    const config = {
+      ...options,
+      headers: {
+        'X-API-KEY': this.apiKey,
+        ...options.headers
+      }
+    };
     
-    console.log(`Status: ${note.transcription_status}`);
+    const response = await fetch(url, config);
     
-    if (note.transcription_status === 'completed') {
-      console.log('✅ Processamento concluído!');
-      return note;
-    } else if (note.transcription_status === 'failed') {
-      console.log('❌ Processamento falhou');
-      return note;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+      throw new Error(`API Error: ${response.status} - ${error.message}`);
     }
     
-    // Aguardar 3 segundos antes da próxima verificação
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    return response.json();
   }
   
-  console.log('⏰ Timeout: processamento ainda em andamento');
-}
-```
-
-```python Python
-import time
-
-def check_note_status(note_id):
-    """Verificar status da nota"""
-    try:
-        response = requests.get(
-            f'{BASE_URL}/notes/{note_id}',
-            headers={'X-API-KEY': API_KEY}
-        )
-        
-        if response.status_code == 200:
-            return response.json()['data']
-    except Exception as error:
-        print(f'Erro ao verificar status: {error}')
-
-def wait_for_completion(note_id, max_wait_time=300):
-    """Aguardar conclusão do processamento"""
-    start_time = time.time()
+  async createNote(audioFile, metadata = {}) {
+    const formData = new FormData();
+    formData.append('audio', audioFile);
+    formData.append('metadata', JSON.stringify(metadata));
     
-    while time.time() - start_time < max_wait_time:
-        note = check_note_status(note_id)
-        
-        print(f'Status: {note["transcription_status"]}')
-        
-        if note['transcription_status'] == 'completed':
-            print('✅ Processamento concluído!')
-            return note
-        elif note['transcription_status'] == 'failed':
-            print('❌ Processamento falhou')
-            return note
-        
-        # Aguardar 3 segundos
-        time.sleep(3)
-    
-    print('⏰ Timeout: processamento ainda em andamento')
-```
-
-</CodeGroup>
-
-## Padrões de Integração
-
-### 1. Integração Síncrona (Polling)
-
-```javascript
-// Fluxo completo com polling
-async function processAudioSync(audioFile, metadata) {
-  // 1. Upload
-  const note = await uploadAudio(audioFile, metadata);
+    return this.request('/notes', {
+      method: 'POST',
+      body: formData,
+      headers: {} // Deixar browser definir Content-Type para FormData
+    });
+  }
   
-  // 2. Aguardar processamento
-  const completedNote = await waitForCompletion(note.id);
+  async getNote(id) {
+    return this.request(`/notes/${id}`);
+  }
   
-  // 3. Usar resultado
-  if (completedNote.transcription_status === 'completed') {
-    displayResults(completedNote);
+  async listNotes(filters = {}) {
+    const params = new URLSearchParams(filters);
+    return this.request(`/notes?${params}`);
   }
 }
+
+// Instanciar cliente
+const connectvets = new ConnectVetsClient(process.env.CONNECTVETS_API_KEY);
+
+module.exports = { connectvets };
 ```
 
-### 2. Integração Assíncrona (Webhooks)
+### Integração com Sistema Veterinário
 
 ```javascript
-// Configurar webhook primeiro
-async function setupWebhook() {
-  const webhook = await fetch(`${BASE_URL}/webhooks`, {
-    method: 'POST',
-    headers: {
-      'X-API-KEY': CONNECTVETS_API_KEY,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      url: 'https://minha-app.com/webhooks/connectvets',
-      events: ['note.completed', 'note.failed'],
-      description: 'Webhook Principal'
-    })
-  });
-}
+// services/consultationService.js
+const { connectvets } = require('../config/connectvets');
 
-// Upload sem aguardar
-async function processAudioAsync(audioFile, metadata) {
-  const note = await uploadAudio(audioFile, metadata);
-  
-  // Salvar ID da nota para processar no webhook
-  await saveNoteToDatabase({
-    id: note.id,
-    status: 'pending',
-    patient_name: metadata.patientName
-  });
-  
-  return note.id;
-}
-```
-
-## Tratamento de Erros
-
-### Códigos de Erro Comuns
-
-<Accordion title="400 Bad Request">
-  **Causa**: Dados inválidos ou arquivo corrompido
-  
-  **Soluções**:
-  - Validar formato do áudio (WAV, MP3, M4A)
-  - Verificar tamanho do arquivo (< 100MB)
-  - Confirmar metadados obrigatórios
-</Accordion>
-
-<Accordion title="401 Unauthorized">
-  **Causa**: API Key inválida ou expirada
-  
-  **Soluções**:
-  - Verificar se a chave está correta
-  - Confirmar que não expirou
-  - Testar com nova API Key
-</Accordion>
-
-<Accordion title="429 Too Many Requests">
-  **Causa**: Excedeu limite de requisições
-  
-  **Soluções**:
-  - Implementar retry com backoff
-  - Distribuir requisições no tempo
-  - Otimizar frequência de chamadas
-</Accordion>
-
-### Implementação de Retry
-
-<CodeGroup>
-```javascript JavaScript
-async function apiCallWithRetry(fn, maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
+class ConsultationService {
+  async processConsultation(consultation) {
     try {
-      return await fn();
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
+      // 1. Preparar dados
+      const metadata = {
+        patient_name: consultation.patient.name,
+        patient_id: consultation.patient.id,
+        doctor_name: consultation.veterinarian.name,
+        doctor_id: consultation.veterinarian.id,
+        consultation_date: consultation.date,
+        species: consultation.patient.species,
+        breed: consultation.patient.breed,
+        consultation_type: consultation.type
+      };
       
-      const delay = Math.min(1000 * Math.pow(2, i), 10000);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      // 2. Enviar áudio para processamento
+      console.log('📤 Enviando áudio para ConnectVets...');
+      const note = await connectvets.createNote(consultation.audioFile, metadata);
+      
+      // 3. Salvar referência no banco
+      await this.saveNoteReference(consultation.id, note.id);
+      
+      // 4. Iniciar monitoramento
+      this.startNoteMonitoring(note.id, consultation.id);
+      
+      return note;
+      
+    } catch (error) {
+      console.error('❌ Erro ao processar consulta:', error);
+      throw error;
     }
   }
+  
+  async startNoteMonitoring(noteId, consultationId) {
+    const checkStatus = async () => {
+      try {
+        const note = await connectvets.getNote(noteId);
+        
+        if (note.status === 'completed') {
+          await this.handleCompletedNote(note, consultationId);
+        } else if (note.status === 'failed') {
+          await this.handleFailedNote(note, consultationId);
+        } else {
+          // Ainda processando, verificar novamente em 30s
+          setTimeout(checkStatus, 30000);
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar status:', error);
+      }
+    };
+    
+    checkStatus();
+  }
+  
+  async handleCompletedNote(note, consultationId) {
+    console.log('✅ Nota processada para consulta:', consultationId);
+    
+    // Extrair informações das seções
+    const sections = note.sections;
+    const summary = sections.find(s => s.type === 'summary')?.content;
+    const diagnosis = sections.find(s => s.type === 'diagnosis')?.content;
+    const treatment = sections.find(s => s.type === 'treatment')?.content;
+    
+    // Atualizar prontuário
+    await this.updateMedicalRecord(consultationId, {
+      summary,
+      diagnosis,
+      treatment,
+      full_transcript: note.transcript,
+      connectvets_note_id: note.id
+    });
+    
+    // Notificar veterinário
+    await this.notifyVeterinarian(consultationId, note);
+  }
+  
+  async handleFailedNote(note, consultationId) {
+    console.log('❌ Falha no processamento para consulta:', consultationId);
+    
+    // Registrar erro
+    await this.logProcessingError(consultationId, note.error_message);
+    
+    // Notificar administrador
+    await this.notifyAdmin(consultationId, note.error_message);
+  }
 }
+
+module.exports = { ConsultationService };
 ```
 
-```python Python
-import time
-import random
+## Checklist de Onboarding
 
-def api_call_with_retry(fn, max_retries=3):
-    for i in range(max_retries):
-        try:
-            return fn()
-        except Exception as error:
-            if i == max_retries - 1:
-                raise error
-            
-            delay = min(1000 * (2 ** i), 10000) / 1000
-            time.sleep(delay + random.uniform(0, 1))
-```
-</CodeGroup>
+<AccordionGroup>
+  <Accordion title="✅ Configuração Inicial">
+    - [ ] Conta ConnectVets criada
+    - [ ] Workspace configurado
+    - [ ] API Key gerada e armazenada
+    - [ ] Variáveis de ambiente configuradas
+    - [ ] Primeiro teste de conectividade realizado
+  </Accordion>
+  
+  <Accordion title="✅ Integração Básica">
+    - [ ] Cliente HTTP configurado
+    - [ ] Primeira nota enviada com sucesso
+    - [ ] Sistema de polling implementado
+    - [ ] Tratamento de erros básico funcionando
+    - [ ] Logs de debug ativados
+  </Accordion>
+  
+  <Accordion title="✅ Funcionalidades Avançadas">
+    - [ ] Webhooks configurados (opcional)
+    - [ ] Filtros e paginação implementados
+    - [ ] Retry automático em caso de erro
+    - [ ] Monitoramento de performance
+    - [ ] Backup de dados críticos
+  </Accordion>
+  
+  <Accordion title="✅ Produção">
+    - [ ] API Key de produção configurada
+    - [ ] Logs de produção configurados
+    - [ ] Monitoramento ativo
+    - [ ] Alertas de erro implementados
+    - [ ] Documentação interna criada
+  </Accordion>
+</AccordionGroup>
 
 ## Próximos Passos
 
 <CardGroup cols={2}>
-  <Card title="Configurar Webhooks" icon="webhook" href="/concepts/webhooks">
-    Para notificações em tempo real
+  <Card
+    title="Requisitos de Áudio"
+    icon="microphone"
+    href="/integration/audio-requirements"
+  >
+    Especificações técnicas para áudio
   </Card>
-  <Card title="Ver Exemplos" icon="code" href="/examples/basic-integration">
-    Implementações completas funcionais
+  <Card
+    title="Tratamento de Erros"
+    icon="alert-triangle"
+    href="/integration/error-handling"
+  >
+    Como lidar com falhas e erros
   </Card>
-  <Card title="Configurar Workspaces" icon="building" href="/concepts/tenants">
-    Para múltiplas clínicas
-  </Card>
-  <Card title="API Reference" icon="book" href="/api-reference/overview">
+  <Card
+    title="API Reference"
+    icon="book"
+    href="/api-reference/overview"
+  >
     Documentação completa da API
+  </Card>
+  <Card
+    title="Exemplos Práticos"
+    icon="code"
+    href="/examples/basic-integration"
+  >
+    Integrações reais funcionando
   </Card>
 </CardGroup>
 
-## Checklist de Integração
+## Suporte
 
-### ✅ Desenvolvimento
-- [ ] API Key criada e testada
-- [ ] Primeiro upload de áudio funcionando
-- [ ] Polling ou webhooks implementados
-- [ ] Tratamento de erros implementado
-- [ ] Logs e monitoramento configurados
+Precisa de ajuda durante o onboarding?
 
-### ✅ Produção
-- [ ] API Key de produção criada
-- [ ] Ambiente de produção configurado
-- [ ] Webhooks de produção testados
-- [ ] Backup e recovery implementados
-- [ ] Monitoramento de performance ativo
-
----
-
-<Tip>
-**Precisa de ajuda?** Entre em contato no [Discord](https://discord.gg/uN4NxUGk) ou [WhatsApp](https://wa.me/5531888835141).
-</Tip> 
+- 📧 **Email**: suporte@connectvets.com.br
+- 💬 **Chat**: Disponível no dashboard
+- 📖 **Documentação**: Sempre atualizada
+- 🐛 **Bugs**: Reporte via GitHub Issues 

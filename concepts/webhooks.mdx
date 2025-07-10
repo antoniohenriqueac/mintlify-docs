@@ -65,7 +65,7 @@ sequenceDiagram
 
 | Aspecto | 🔔 **Webhooks** | 🔄 **Polling** |
 |---------|----------------|----------------|
-| **Latência** | < 1 segundo | 5-30 segundos |
+| **Latência** | &lt; 1 segundo | 5-30 segundos |
 | **Eficiência** | Alta (push) | Baixa (pull) |
 | **Recursos** | Mínimos | Consome API calls |
 | **Complexidade** | Média | Simples |
@@ -174,350 +174,576 @@ sequenceDiagram
     - Erro interno temporário
     - Violação de políticas de conteúdo
   </Accordion>
+  
+  <Accordion title="📝 note.updated">
+    **Quando**: Nota modificada manualmente
+    
+    **Use para**:
+    - Sincronizar alterações manuais
+    - Manter histórico de mudanças
+    - Notificar sobre correções
+    - Atualizar caches locais
+    
+    **Cenários**:
+    - Correção manual da transcrição
+    - Atualização de metadados
+    - Reprocessamento manual
+  </Accordion>
 </AccordionGroup>
 
-## Configuração de Webhooks
+### Eventos do Sistema
 
-### Criar Webhook via Dashboard
-
-<Steps>
-  <Step title="Acesse Configurações">
-    Vá para `https://notes.connectvets.com.br/settings/webhooks`
-  </Step>
+<AccordionGroup>
+  <Accordion title="🔑 api_key.revoked">
+    **Quando**: API key foi revogada ou expirou
+    
+    **Use para**:
+    - Parar operações automaticamente
+    - Notificar administrador urgentemente
+    - Redirecionar para renovação
+    - Registrar evento de segurança
+  </Accordion>
   
-  <Step title="Adicione Nova URL">
-    Clique em "Novo Webhook" e insira:
-    - **URL**: Endpoint da sua aplicação
-    - **Eventos**: Tipos de eventos para receber
-    - **Descrição**: Nome identificador
-  </Step>
+  <Accordion title="💰 quota.exceeded">
+    **Quando**: Cota mensal foi excedida
+    
+    **Use para**:
+    - Bloquear novas submissões
+    - Notificar sobre limite atingido
+    - Sugerir upgrade de plano
+    - Agendar renovação automática
+  </Accordion>
   
-  <Step title="Configure Segurança">
-    Defina secret para validação de payload
-  </Step>
-  
-  <Step title="Teste Conexão">
-    Use função "Testar Webhook" para validar
-  </Step>
-</Steps>
+  <Accordion title="🏥 workspace.updated">
+    **Quando**: Configurações do workspace mudaram
+    
+    **Use para**:
+    - Atualizar configurações locais
+    - Sincronizar permissões
+    - Revalidar acessos
+    - Atualizar interface
+  </Accordion>
+</AccordionGroup>
 
-### Criar Webhook via API
+## Configuração e Gerenciamento
 
-<CodeGroup>
-```bash cURL
-curl -X POST "https://api.connectvets.com.br/v1/webhooks" \
-  -H "X-API-KEY: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://seu-site.com/webhooks/connectvets",
-    "events": ["note.created", "note.completed", "note.failed"],
-    "description": "Webhook Sistema Principal",
-    "secret": "webhook_secret_123"
-  }'
+### Anatomia de um Webhook
+
+```json
+{
+  "id": "wh_1234567890abcdef",
+  "url": "https://meuapp.com/webhooks/connectvets",
+  "events": [
+    "note.created",
+    "note.completed", 
+    "note.failed"
+  ],
+  "secret": "whsec_abc123def456...",
+  "active": true,
+  "description": "Webhook principal do sistema",
+  "created_at": "2024-02-14T18:00:00Z",
+  "last_triggered": "2024-02-14T19:30:15Z",
+  "success_rate": 98.5,
+  "retry_policy": {
+    "max_attempts": 3,
+    "backoff_strategy": "exponential"
+  }
+}
 ```
 
-```javascript JavaScript
-const webhook = await fetch('https://api.connectvets.com.br/v1/webhooks', {
-  method: 'POST',
-  headers: {
-    'X-API-KEY': 'your_api_key',
-    'Content-Type': 'application/json'
+### Estratégias de Configuração
+
+<CardGroup cols={2}>
+  <Card
+    title="🎯 Webhook Específico"
+    icon="target"
+  >
+    **Um webhook por tipo de evento**
+    
+    - `/webhooks/notes/created`
+    - `/webhooks/notes/completed`
+    - `/webhooks/notes/failed`
+    
+    **Vantagens**: Lógica separada, debug fácil
+    **Desvantagens**: Mais endpoints para manter
+  </Card>
+  
+  <Card
+    title="🌐 Webhook Universal"
+    icon="globe"
+  >
+    **Um webhook para todos os eventos**
+    
+    - `/webhooks/connectvets`
+    
+    **Vantagens**: Simples de configurar
+    **Desvantagens**: Lógica mais complexa
+  </Card>
+</CardGroup>
+
+### Configuração por Ambiente
+
+```javascript
+// Configuração recomendada por ambiente
+const webhookConfigs = {
+  development: {
+    url: 'https://ngrok-tunnel.ngrok.io/webhooks/connectvets',
+    events: ['note.completed'], // Apenas eventos essenciais
+    secret: 'dev_secret_123'
   },
-  body: JSON.stringify({
-    url: 'https://seu-site.com/webhooks/connectvets',
+  
+  staging: {
+    url: 'https://staging.meuapp.com/webhooks/connectvets',
     events: ['note.created', 'note.completed', 'note.failed'],
-    description: 'Webhook Sistema Principal',
-    secret: 'webhook_secret_123'
-  })
-});
-```
-
-```python Python
-import requests
-
-webhook_data = {
-    'url': 'https://seu-site.com/webhooks/connectvets',
-    'events': ['note.created', 'note.completed', 'note.failed'],
-    'description': 'Webhook Sistema Principal',
-    'secret': 'webhook_secret_123'
-}
-
-response = requests.post(
-    'https://api.connectvets.com.br/v1/webhooks',
-    headers={'X-API-KEY': 'your_api_key'},
-    json=webhook_data
-)
-```
-</CodeGroup>
-
-## Implementação do Endpoint
-
-### Estrutura Básica
-
-<CodeGroup>
-```javascript Node.js/Express
-const express = require('express');
-const crypto = require('crypto');
-
-const app = express();
-app.use(express.json());
-
-// Endpoint para receber webhooks
-app.post('/webhooks/connectvets', (req, res) => {
-  const signature = req.headers['x-webhook-signature'];
-  const payload = JSON.stringify(req.body);
+    secret: 'staging_secret_456'
+  },
   
-  // Validar assinatura
-  const expectedSignature = crypto
-    .createHmac('sha256', process.env.WEBHOOK_SECRET)
-    .update(payload)
-    .digest('hex');
-  
-  if (signature !== `sha256=${expectedSignature}`) {
-    return res.status(401).json({ error: 'Invalid signature' });
+  production: {
+    url: 'https://meuapp.com/webhooks/connectvets',
+    events: [
+      'note.created', 'note.processing', 'note.completed', 
+      'note.failed', 'api_key.revoked', 'quota.exceeded'
+    ],
+    secret: 'prod_secret_ultra_secure_789'
   }
-  
-  // Processar evento
-  const { type, data } = req.body;
-  
-  switch (type) {
-    case 'note.created':
-      handleNoteCreated(data);
-      break;
-    case 'note.completed':
-      handleNoteCompleted(data);
-      break;
-    case 'note.failed':
-      handleNoteFailed(data);
-      break;
-    default:
-      console.log('Evento desconhecido:', type);
-  }
-  
-  res.status(200).json({ received: true });
-});
+};
 ```
-
-```python Flask
-from flask import Flask, request, jsonify
-import hmac
-import hashlib
-import json
-
-app = Flask(__name__)
-
-@app.route('/webhooks/connectvets', methods=['POST'])
-def webhook():
-    signature = request.headers.get('X-Webhook-Signature')
-    payload = request.get_data()
-    
-    # Validar assinatura
-    expected_signature = hmac.new(
-        WEBHOOK_SECRET.encode(),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
-    
-    if signature != f'sha256={expected_signature}':
-        return jsonify({'error': 'Invalid signature'}), 401
-    
-    # Processar evento
-    data = request.json
-    event_type = data.get('type')
-    
-    if event_type == 'note.created':
-        handle_note_created(data['data'])
-    elif event_type == 'note.completed':
-        handle_note_completed(data['data'])
-    elif event_type == 'note.failed':
-        handle_note_failed(data['data'])
-    
-    return jsonify({'received': True})
-```
-</CodeGroup>
-
-### Tratamento de Eventos
-
-<CodeGroup>
-```javascript JavaScript
-async function handleNoteCompleted(data) {
-  const note = data.note;
-  
-  try {
-    // Atualizar banco de dados local
-    await updateNoteInDatabase(note.id, {
-      status: 'completed',
-      transcription: note.transcription,
-      sections: note.sections,
-      completed_at: new Date()
-    });
-    
-    // Notificar usuário
-    await sendNotificationToUser(note.user_id, {
-      message: `Nota ${note.id} foi processada com sucesso`,
-      type: 'success'
-    });
-    
-    // Integrar com sistema de prontuário
-    await updatePatientRecord(note.patient_id, note.sections);
-    
-  } catch (error) {
-    console.error('Erro ao processar webhook:', error);
-    // Implementar retry ou alerta
-  }
-}
-```
-
-```python Python
-async def handle_note_completed(data):
-    note = data['note']
-    
-    try:
-        # Atualizar banco de dados local
-        await update_note_in_database(note['id'], {
-            'status': 'completed',
-            'transcription': note['transcription'],
-            'sections': note['sections'],
-            'completed_at': datetime.now()
-        })
-        
-        # Notificar usuário
-        await send_notification_to_user(note['user_id'], {
-            'message': f'Nota {note["id"]} foi processada com sucesso',
-            'type': 'success'
-        })
-        
-        # Integrar com sistema de prontuário
-        await update_patient_record(note['patient_id'], note['sections'])
-        
-    except Exception as error:
-        print(f'Erro ao processar webhook: {error}')
-        # Implementar retry ou alerta
-```
-</CodeGroup>
 
 ## Segurança e Validação
 
-### Validação de Assinatura
+### Verificação de Assinatura
 
-<CodeGroup>
-```javascript JavaScript
-function validateWebhookSignature(payload, signature, secret) {
+```javascript
+// Por que verificar assinatura?
+const securityReasons = {
+  authentication: "Confirmar que o webhook veio do ConnectVets",
+  integrity: "Garantir que dados não foram modificados",
+  replay_protection: "Evitar ataques de replay",
+  spoofing_prevention: "Impedir webhooks falsos"
+};
+
+// Como verificar
+function verifyWebhookSignature(payload, signature, secret) {
   const expectedSignature = crypto
     .createHmac('sha256', secret)
     .update(payload)
     .digest('hex');
-    
-  return signature === `sha256=${expectedSignature}`;
+  
+  const receivedSignature = signature.replace('sha256=', '');
+  
+  // Comparação timing-safe (evita timing attacks)
+  return crypto.timingSafeEqual(
+    Buffer.from(expectedSignature, 'hex'),
+    Buffer.from(receivedSignature, 'hex')
+  );
 }
 ```
 
-```python Python
-import hmac
-import hashlib
+### Headers de Segurança
 
-def validate_webhook_signature(payload, signature, secret):
-    expected_signature = hmac.new(
-        secret.encode(),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
-    
-    return signature == f'sha256={expected_signature}'
-```
-</CodeGroup>
-
-### Tratamento de Erros
-
-<Accordion title="Retry Logic">
-  ConnectVets implementa retry automático:
-  - **Tentativas**: 3 tentativas com backoff exponencial
-  - **Timeout**: 30 segundos por tentativa
-  - **Backoff**: 2s, 4s, 8s entre tentativas
-  - **Desabilitação**: Após 5 falhas consecutivas
-</Accordion>
-
-<Accordion title="Códigos de Resposta">
-  - **200**: Webhook processado com sucesso
-  - **201**: Webhook recebido e será processado
-  - **400**: Payload inválido
-  - **401**: Assinatura inválida
-  - **500**: Erro interno - ConnectVets tentará novamente
-</Accordion>
-
-## Monitoramento e Debug
-
-### Logs de Webhook
-
-Acesse `https://notes.connectvets.com.br/settings/webhooks` para visualizar:
-
-- **Histórico** de entregas
-- **Status** de cada tentativa
-- **Payload** enviado
-- **Resposta** recebida
-- **Tempo** de processamento
-
-### Teste de Webhooks
-
-<CodeGroup>
-```bash Teste Manual
-# Simular webhook localmente
-curl -X POST "http://localhost:3000/webhooks/connectvets" \
-  -H "Content-Type: application/json" \
-  -H "X-Webhook-Signature: sha256=..." \
-  -d '{
-    "type": "note.completed",
-    "data": {
-      "note": {
-        "id": "note_test_123",
-        "status": "completed"
-      }
-    }
-  }'
+```http
+POST /webhooks/connectvets HTTP/1.1
+Host: meuapp.com
+Content-Type: application/json
+X-ConnectVets-Signature: sha256=abc123def456...
+X-ConnectVets-Event: note.completed
+X-ConnectVets-Delivery: 12345678-1234-1234-1234-123456789abc
+X-ConnectVets-Timestamp: 1708024543
+User-Agent: ConnectVets-Webhooks/1.0
 ```
 
-```javascript Teste Automatizado
-// Teste unitário para webhook
-const request = require('supertest');
-const app = require('./app');
+| Header | Descrição | Uso |
+|--------|-----------|-----|
+| `X-ConnectVets-Signature` | Assinatura HMAC-SHA256 | **Validação obrigatória** |
+| `X-ConnectVets-Event` | Tipo do evento | Roteamento rápido |
+| `X-ConnectVets-Delivery` | ID único da entrega | Deduplicação |
+| `X-ConnectVets-Timestamp` | Timestamp Unix | Proteção contra replay |
 
-describe('Webhook ConnectVets', () => {
-  it('should handle note.completed event', async () => {
-    const payload = {
-      type: 'note.completed',
-      data: { note: { id: 'test_123', status: 'completed' } }
-    };
-    
-    const response = await request(app)
-      .post('/webhooks/connectvets')
-      .send(payload)
-      .expect(200);
-      
-    expect(response.body.received).toBe(true);
-  });
+## Padrões de Implementação
+
+### Padrão Básico: Handler Simples
+
+```javascript
+// Para aplicações pequenas
+app.post('/webhooks/connectvets', (req, res) => {
+  const event = req.body;
+  
+  switch (event.type) {
+    case 'note.completed':
+      updatePatientRecord(event.data.note);
+      break;
+    case 'note.failed':
+      logError(event.data.note);
+      break;
+  }
+  
+  res.status(200).send('OK');
 });
 ```
-</CodeGroup>
+
+### Padrão Avançado: Sistema de Eventos
+
+```javascript
+// Para aplicações robustas
+class WebhookEventSystem {
+  constructor() {
+    this.handlers = new Map();
+    this.middleware = [];
+  }
+  
+  // Registrar handler
+  on(eventType, handler) {
+    if (!this.handlers.has(eventType)) {
+      this.handlers.set(eventType, []);
+    }
+    this.handlers.get(eventType).push(handler);
+  }
+  
+  // Middleware (validação, logging, etc.)
+  use(middleware) {
+    this.middleware.push(middleware);
+  }
+  
+  // Processar evento
+  async emit(event) {
+    // Executar middleware
+    for (const middleware of this.middleware) {
+      await middleware(event);
+    }
+    
+    // Executar handlers
+    const handlers = this.handlers.get(event.type) || [];
+    await Promise.all(handlers.map(handler => handler(event)));
+  }
+}
+
+// Uso
+const webhookSystem = new WebhookEventSystem();
+
+webhookSystem.use(validateSignature);
+webhookSystem.use(logEvent);
+webhookSystem.use(deduplicateEvent);
+
+webhookSystem.on('note.completed', updatePatientRecord);
+webhookSystem.on('note.completed', notifyVeterinarian);
+webhookSystem.on('note.completed', sendCompletionEmail);
+```
+
+### Padrão Enterprise: Message Queue
+
+```javascript
+// Para alta escala e confiabilidade
+class WebhookProcessor {
+  constructor(queue) {
+    this.queue = queue; // Redis, RabbitMQ, AWS SQS, etc.
+  }
+  
+  // Receber webhook (rápido)
+  async receiveWebhook(req, res) {
+    try {
+      // Validação básica e rápida
+      this.validateRequest(req);
+      
+      // Adicionar à fila para processamento assíncrono
+      await this.queue.add('process-webhook', {
+        headers: req.headers,
+        body: req.body,
+        timestamp: Date.now()
+      });
+      
+      // Responder imediatamente
+      res.status(200).send('Queued');
+      
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+  
+  // Processar webhook (assíncrono)
+  async processWebhook(job) {
+    const { headers, body } = job.data;
+    
+    // Validação completa
+    await this.fullValidation(headers, body);
+    
+    // Processamento business logic
+    await this.handleEvent(body);
+    
+    // Marcar como processado
+    await this.markAsProcessed(body.id);
+  }
+}
+```
+
+## Monitoramento e Observabilidade
+
+### Métricas Importantes
+
+<CardGroup cols={2}>
+  <Card
+    title="📊 Métricas de Entrega"
+    icon="chart-line"
+  >
+    - **Taxa de sucesso** (target: >99%)
+    - **Latência de entrega** (target: &lt;2s)
+    - **Taxa de retry** (target: &lt;5%)
+    - **Eventos perdidos** (target: 0)
+  </Card>
+  
+  <Card
+    title="⚡ Métricas de Performance"
+    icon="zap"
+  >
+    - **Tempo de processamento** (target: &lt;1s)
+    - **Throughput** (eventos/segundo)
+    - **Memory/CPU usage**
+    - **Tempo de resposta** HTTP
+  </Card>
+</CardGroup>
+
+### Dashboard de Webhooks
+
+```javascript
+// Métricas que devem ser monitoradas
+const webhookMetrics = {
+  delivery: {
+    total_sent: 15847,
+    successful: 15691,
+    failed: 156,
+    success_rate: 99.01 // %
+  },
+  
+  performance: {
+    avg_response_time: 245, // ms
+    p95_response_time: 890, // ms
+    avg_payload_size: 2.3, // KB
+    throughput: 125 // eventos/min
+  },
+  
+  errors: {
+    timeout_count: 23,
+    http_errors: {
+      '400': 12,
+      '500': 8,
+      '503': 5
+    },
+    signature_failures: 2
+  },
+  
+  recent_events: [
+    { type: 'note.completed', timestamp: '2024-02-14T19:45:32Z', status: 'success' },
+    { type: 'note.failed', timestamp: '2024-02-14T19:45:28Z', status: 'success' },
+    // ...
+  ]
+};
+```
+
+## Troubleshooting e Debug
+
+### Problemas Comuns
+
+<AccordionGroup>
+  <Accordion title="🚫 Webhooks não chegam">
+    **Possíveis causas:**
+    - URL incorreta ou inacessível
+    - Firewall bloqueando ConnectVets
+    - Webhook desativado
+    - Evento não inscrito
+    
+    **Debug:**
+    ```bash
+    # Testar acessibilidade
+    curl -X POST https://meuapp.com/webhooks/connectvets \
+         -H "Content-Type: application/json" \
+         -d '{"test": true}'
+    
+    # Verificar logs do servidor
+    tail -f /var/log/webhook.log
+    
+    # Testar webhook via dashboard
+    POST /webhooks/{id}/test
+    ```
+  </Accordion>
+  
+  <Accordion title="❌ Falhas de assinatura">
+    **Possíveis causas:**
+    - Secret incorreto
+    - Modificação do payload
+    - Codificação de caracteres
+    - Timing de verificação
+    
+    **Debug:**
+    ```javascript
+    // Log detalhado da verificação
+    console.log('Received signature:', req.headers['x-connectvets-signature']);
+    console.log('Payload:', req.rawBody);
+    console.log('Expected signature:', expectedSignature);
+    console.log('Secret used:', webhookSecret.substring(0, 8) + '...');
+    ```
+  </Accordion>
+  
+  <Accordion title="🐌 Timeouts frequentes">
+    **Possíveis causas:**
+    - Processamento muito lento
+    - Operações síncronas pesadas
+    - Dependências externas lentas
+    - Recursos insuficientes
+    
+    **Soluções:**
+    ```javascript
+    // Responder rapidamente + processar async
+    app.post('/webhooks', (req, res) => {
+      res.status(200).send('OK'); // Responder primeiro
+      
+      // Processar depois
+      setImmediate(() => {
+        processWebhookAsync(req.body);
+      });
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Ferramentas de Debug
+
+```javascript
+// Webhook debugger para desenvolvimento
+class WebhookDebugger {
+  constructor() {
+    this.events = [];
+    this.maxEvents = 100;
+  }
+  
+  logEvent(event, metadata = {}) {
+    this.events.unshift({
+      ...event,
+      debug: {
+        timestamp: new Date(),
+        headers: metadata.headers,
+        signature_valid: metadata.signatureValid,
+        processing_time: metadata.processingTime
+      }
+    });
+    
+    // Manter apenas últimos eventos
+    if (this.events.length > this.maxEvents) {
+      this.events = this.events.slice(0, this.maxEvents);
+    }
+  }
+  
+  getRecentEvents(count = 20) {
+    return this.events.slice(0, count);
+  }
+  
+  getEventStats() {
+    return {
+      total: this.events.length,
+      by_type: this.groupBy(this.events, 'type'),
+      avg_processing_time: this.average(this.events, 'debug.processing_time')
+    };
+  }
+}
+```
+
+## Migração: Polling → Webhooks
+
+### Estratégia de Migração
+
+<Steps>
+  <Step title="Fase 1: Implementação Paralela">
+    Manter polling existente + implementar webhooks
+    - Webhooks para eventos críticos
+    - Polling como backup/fallback
+  </Step>
+  
+  <Step title="Fase 2: Validação">
+    Comparar resultados entre polling e webhooks
+    - Verificar consistência de dados
+    - Medir performance e confiabilidade
+  </Step>
+  
+  <Step title="Fase 3: Transição Gradual">
+    Migrar funcionalidades uma por uma
+    - Começar com funcionalidades menos críticas
+    - Monitorar métricas atentamente
+  </Step>
+  
+  <Step title="Fase 4: Desativação do Polling">
+    Remover polling quando webhooks estiverem estáveis
+    - Manter como emergency fallback
+    - Documentar processo de rollback
+  </Step>
+</Steps>
+
+### Código de Migração
+
+```javascript
+class HybridNotificationSystem {
+  constructor() {
+    this.useWebhooks = process.env.USE_WEBHOOKS === 'true';
+    this.pollingInterval = 30000; // 30s fallback
+  }
+  
+  async processNote(noteId) {
+    if (this.useWebhooks) {
+      // Webhook mode: apenas aguardar notificação
+      return this.waitForWebhook(noteId);
+    } else {
+      // Polling mode: verificar status periodicamente
+      return this.pollNoteStatus(noteId);
+    }
+  }
+  
+  async waitForWebhook(noteId, timeout = 300000) {
+    return new Promise((resolve, reject) => {
+      // Configurar listener para webhook
+      this.once(`note.completed.${noteId}`, resolve);
+      this.once(`note.failed.${noteId}`, reject);
+      
+      // Timeout como fallback
+      setTimeout(() => {
+        reject(new Error('Webhook timeout'));
+      }, timeout);
+    });
+  }
+  
+  // Fallback para polling em caso de falha de webhook
+  async emergencyPolling(noteId) {
+    console.warn('🚨 Fallback para polling devido a falha de webhook');
+    return this.pollNoteStatus(noteId);
+  }
+}
+```
 
 ## Próximos Passos
 
 <CardGroup cols={2}>
-  <Card title="API Keys" icon="key" href="/concepts/api-keys">
-    Configure autenticação adequada
+  <Card
+    title="Webhook Handling"
+    icon="webhook"
+    href="/examples/webhook-handling"
+  >
+    Implementação prática completa
   </Card>
-  <Card title="Tenants" icon="building" href="/concepts/tenants">
-    Organize webhooks por workspace
+  <Card
+    title="API Keys"
+    icon="key"
+    href="/concepts/api-keys"
+  >
+    Como funcionam as chaves de API
   </Card>
-  <Card title="Integração" icon="puzzle-piece" href="/integration/onboarding">
-    Implemente em sua aplicação
+  <Card
+    title="Tenants e Workspaces"
+    icon="building"
+    href="/concepts/tenants"
+  >
+    Sistema multi-tenant
   </Card>
-  <Card title="Exemplos" icon="code" href="/examples/webhook-handling">
-    Veja implementações completas
+  <Card
+    title="Error Handling"
+    icon="alert-triangle"
+    href="/integration/error-handling"
+  >
+    Tratamento robusto de erros
   </Card>
-</CardGroup>
-
----
-
-<Tip>
-**Problemas com webhooks?** Consulte os logs no dashboard ou entre em contato no [Discord](https://discord.gg/uN4NxUGk).
-</Tip> 
+</CardGroup> 

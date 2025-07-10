@@ -198,172 +198,174 @@ Quando uma nota é processada com sucesso, ela é automaticamente dividida em **
 - **Fala clara**: Evite falar muito rápido
 - **Volume consistente**: Não muito baixo ou alto
 
-## Limites e Restrições
+## Filtros e Busca
 
-### Tamanho do Arquivo
+### Filtros Disponíveis
 
-| Plano | Tamanho Máximo | Duração Máxima |
-|-------|---------------|----------------|
-| **Gratuito** | 25 MB | 30 minutos |
-| **Pro** | 100 MB | 120 minutos |
-| **Enterprise** | 500 MB | 480 minutos |
+Use estes parâmetros para filtrar notas:
 
-### Tempo de Processamento
-
-**Estimativas típicas:**
-- Arquivos de até 10 minutos: 2-5 minutos
-- Arquivos de 10-30 minutos: 5-15 minutos
-- Arquivos de 30-60 minutos: 15-30 minutos
-
-<Info>
-  Tempos podem variar baseado na carga do sistema e qualidade do áudio
-</Info>
-
-## Exemplos de Uso
-
-### Criando uma Nota
-
-<CodeGroup>
-```bash cURL
-curl -X POST "https://api.connectvets.com.br/v1/notes" \
-  -H "X-API-KEY: your_api_key" \
-  -F "audio=@consulta.wav" \
-  -F "name=Rex" \
-  -F "gender=male" \
-  -F "external_id=PET_001"
+```http
+GET /notes?transcription_status=completed&name=rex&from=2024-01-01
 ```
 
-```javascript JavaScript
-const formData = new FormData();
-formData.append('audio', audioFile);
-formData.append('name', 'Rex');
-formData.append('gender', 'male');
-formData.append('external_id', 'PET_001');
+| Parâmetro | Tipo | Exemplo | Descrição |
+|-----------|------|---------|-----------|
+| `external_id` | String | `CLIENTE_123` | ID do seu sistema |
+| `transcription_status` | Enum | `completed` | Status da transcrição |
+| `valid` | Boolean | `true` | Notas válidas/inválidas |
+| `name` | String | `rex` | Nome do paciente (busca parcial) |
+| `from` | Date | `2024-01-01` | Data inicial |
+| `to` | Date | `2024-01-31` | Data final |
 
-const response = await fetch('https://api.connectvets.com.br/v1/notes', {
-  method: 'POST',
-  headers: {
-    'X-API-KEY': 'your_api_key'
+### Busca Textual
+
+Para buscar no conteúdo das seções, use a API de busca:
+
+```http
+GET /notes/search?q=vacina&section=treatment
+```
+
+## Webhooks para Notas
+
+Configure webhooks para receber notificações automáticas:
+
+### Eventos Disponíveis
+
+- `note.created`: Nova nota criada
+- `note.processing`: Processamento iniciado
+- `note.completed`: Transcrição concluída
+- `note.failed`: Processamento falhou
+
+### Payload do Webhook
+
+```json
+{
+  "event": "note.completed",
+  "data": {
+    "id": "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3",
+    "name": "Rex",
+    "transcription_status": "completed",
+    "external_id": "CLIENTE_123"
   },
-  body: formData
-});
-```
-
-```python Python
-import requests
-
-files = {'audio': open('consulta.wav', 'rb')}
-data = {
-    'name': 'Rex',
-    'gender': 'male',
-    'external_id': 'PET_001'
+  "timestamp": "2024-02-14T18:30:23Z"
 }
-
-response = requests.post(
-    'https://api.connectvets.com.br/v1/notes',
-    headers={'X-API-KEY': 'your_api_key'},
-    files=files,
-    data=data
-)
-```
-</CodeGroup>
-
-### Consultando Status
-
-<CodeGroup>
-```bash cURL
-curl -X GET "https://api.connectvets.com.br/v1/notes/6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3" \
-  -H "X-API-KEY: your_api_key"
 ```
 
-```javascript JavaScript
-const noteId = "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3";
+## Casos de Uso Comuns
 
-const response = await fetch(`https://api.connectvets.com.br/v1/notes/${noteId}`, {
-  headers: {
-    'X-API-KEY': 'your_api_key'
-  }
-});
+### 1. Integração com Sistema Veterinário
 
-const note = await response.json();
-console.log('Status:', note.data.transcription_status);
-```
-
-```python Python
-note_id = "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3"
-
-response = requests.get(
-    f'https://api.connectvets.com.br/v1/notes/{note_id}',
-    headers={'X-API-KEY': 'your_api_key'}
-)
-
-note = response.json()
-print(f"Status: {note['data']['transcription_status']}")
-```
-</CodeGroup>
-
-### Listando Notas
-
-<CodeGroup>
-```bash cURL
-curl -X GET "https://api.connectvets.com.br/v1/notes?transcription_status=completed&limit=10" \
-  -H "X-API-KEY: your_api_key"
-```
-
-```javascript JavaScript
-const params = new URLSearchParams({
-  transcription_status: 'completed',
-  limit: '10',
-  page: '1'
-});
-
-const response = await fetch(`https://api.connectvets.com.br/v1/notes?${params}`, {
-  headers: {
-    'X-API-KEY': 'your_api_key'
-  }
-});
-
-const notes = await response.json();
-console.log('Notas:', notes.data);
-```
-
-```python Python
-params = {
-    'transcription_status': 'completed',
-    'limit': 10,
-    'page': 1
+```javascript
+// Enviar áudio após consulta
+async function processConsultation(patientId, audioFile) {
+  const formData = new FormData();
+  formData.append('audio', audioFile);
+  formData.append('name', patient.name);
+  formData.append('external_id', patientId);
+  
+  const response = await fetch('/notes', {
+    method: 'POST',
+    headers: { 'X-API-KEY': apiKey },
+    body: formData
+  });
+  
+  return response.json();
 }
-
-response = requests.get(
-    'https://api.connectvets.com.br/v1/notes',
-    headers={'X-API-KEY': 'your_api_key'},
-    params=params
-)
-
-notes = response.json()
-print(f"Total: {notes['meta']['total']}")
 ```
-</CodeGroup>
+
+### 2. Buscar Notas por Período
+
+```javascript
+// Relatório mensal
+async function getMonthlyReport(year, month) {
+  const from = `${year}-${month.toString().padStart(2, '0')}-01`;
+  const to = `${year}-${month.toString().padStart(2, '0')}-31`;
+  
+  const response = await fetch(
+    `/notes?from=${from}&to=${to}&transcription_status=completed&per_page=100`,
+    { headers: { 'X-API-KEY': apiKey } }
+  );
+  
+  return response.json();
+}
+```
+
+### 3. Sincronizar com Sistema Local
+
+```javascript
+// Verificar notas processadas
+async function syncProcessedNotes() {
+  const pendingNotes = await getLocalPendingNotes();
+  
+  for (const note of pendingNotes) {
+    const response = await fetch(`/notes/${note.id}`, {
+      headers: { 'X-API-KEY': apiKey }
+    });
+    
+    const updated = await response.json();
+    
+    if (updated.transcription_status === 'completed') {
+      await updateLocalNote(note.id, updated);
+    }
+  }
+}
+```
+
+## Melhores Práticas
+
+### 📁 Organização
+
+- Use `external_id` para vincular ao seu sistema
+- Padronize nomenclatura de pacientes
+- Configure metadados úteis para filtros
+
+### ⚡ Performance
+
+- Monitore o status via webhooks
+- Use paginação para listas grandes  
+- Cache resultados quando possível
+
+### 🔒 Segurança
+
+- Nunca exponha URLs de áudio publicamente
+- Use HTTPS sempre
+- Rotacione API keys periodicamente
+
+### 📊 Monitoramento
+
+- Acompanhe taxa de sucesso das transcrições
+- Monitore tempo de processamento
+- Configure alertas para falhas
 
 ## Próximos Passos
 
 <CardGroup cols={2}>
-  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
-    Receba notificações quando notas forem processadas
+  <Card
+    title="Criar sua primeira nota"
+    icon="plus"
+    href="/api-reference/notes/create"
+  >
+    Veja como enviar áudio para transcrição
   </Card>
-  <Card title="Tenants" icon="building" href="/concepts/tenants">
-    Organize notas por clínica com workspaces
+  <Card
+    title="Configurar webhooks"
+    icon="webhook"
+    href="/concepts/webhooks"
+  >
+    Receba notificações automáticas
   </Card>
-  <Card title="API Keys" icon="key" href="/concepts/api-keys">
-    Configure autenticação e permissões
+  <Card
+    title="Filtros avançados"
+    icon="filter"
+    href="/examples/advanced-filtering"
+  >
+    Aprenda a buscar notas específicas
   </Card>
-  <Card title="Exemplos" icon="code" href="/examples/basic-integration">
-    Veja integrações práticas
+  <Card
+    title="Tenants/Clínicas"
+    icon="building"
+    href="/concepts/tenants"
+  >
+    Entenda o sistema multi-clínica
   </Card>
-</CardGroup>
-
----
-
-<Tip>
-**Dúvidas sobre notas?** Consulte nossa [API Reference](/api-reference/notes/create) ou entre em contato no [Discord](https://discord.gg/uN4NxUGk).
-</Tip> 
+</CardGroup> 

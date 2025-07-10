@@ -1,22 +1,16 @@
 {
-  "name": "connectvets-docs",
+  "name": "connectvets-notes-docs",
   "version": "1.0.0",
-  "description": "ConnectVets Notes API Documentation",
-  "private": true,
+  "description": "Documentação oficial da plataforma ConnectVets Notes",
   "scripts": {
     "dev": "mintlify dev",
-    "start": "mintlify dev --port 3000",
     "build": "mintlify build",
-    "preview": "mintlify dev --port 3001"
+    "preview": "mintlify preview"
   },
   "devDependencies": {
-    "mintlify": "^4.2.10"
+    "mintlify": "latest"
   },
-  "keywords": [
-    "documentation",
-    "api",
-    "veterinary",
-    "connectvets"
-  ],
+  "keywords": ["documentation", "api", "veterinary", "transcription"],
+  "author": "ConnectVets",
   "license": "MIT"
-}
+} 

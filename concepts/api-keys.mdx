@@ -11,7 +11,9 @@ As **API Keys** (Chaves de API) são tokens únicos que identificam e autenticam
   Cada API Key é **única** e identifica um **Tenant/Clínica** específico dentro da plataforma.
 </Info>
 
-## Anatomia de uma API Key
+## Como Funcionam
+
+### Anatomia de uma API Key
 
 As API Keys do ConnectVets seguem um formato específico para facilitar identificação:
 
@@ -60,6 +62,23 @@ cvn_live_abc123def456ghi789jkl012mno345pqr678
   </Card>
 </CardGroup>
 
+### Fluxo de Autenticação
+
+```mermaid
+sequenceDiagram
+    participant App as Sua Aplicação
+    participant API as ConnectVets API
+    participant Auth as Sistema de Auth
+    participant DB as Banco de Dados
+    
+    App->>API: Requisição com X-API-KEY
+    API->>Auth: Validar chave
+    Auth->>DB: Verificar chave ativa
+    DB-->>Auth: Dados da clínica
+    Auth-->>API: Autorização confirmada
+    API-->>App: Resposta com dados
+```
+
 ## Tipos de API Keys
 
 ### Por Ambiente
@@ -102,41 +121,63 @@ cvn_live_abc123def456ghi789jkl012mno345pqr678
 
 ### Criação
 
-<Steps>
-  <Step title="Acesse o painel">
-    `https://notes.connectvets.com.br`
-  </Step>
-  <Step title="Vá para Configurações">
-    **Configurações** → **API Keys**
-  </Step>
-  <Step title="Clique em "Nova API Key"">
-    Escolha o tipo e nomeie a chave
-  </Step>
-  <Step title="Copie a chave">
-    **Exibida apenas uma vez!**
-  </Step>
-</Steps>
+1. **Acesse o painel**: `https://notes.connectvets.com.br`
+2. **Vá para Configurações** → **API Keys**
+3. **Clique em "Nova API Key"**
+4. **Escolha o tipo** e **nomeie** a chave
+5. **Copie a chave** (exibida apenas uma vez!)
 
 <Warning>
   **Importante**: A chave é exibida **apenas uma vez** após a criação. Se perder, será necessário criar uma nova.
 </Warning>
 
+### Exemplo de Criação
+
+```bash
+# Exemplo de resposta ao criar uma API Key
+{
+  "id": "key_123456789",
+  "name": "Integração DoctorVet",
+  "key_prefix": "cvn_live_abc123",
+  "type": "write",
+  "rate_limit_per_minute": 100,
+  "rate_limit_per_hour": 1000,
+  "is_active": true,
+  "created_at": "2024-02-14T18:25:43Z"
+}
+```
+
 ### Rotação de Chaves
 
-<Accordion title="Quando fazer rotação?">
-  - **Periodicidade**: A cada 6-12 meses
-  - **Comprometimento**: Se suspeitar que foi exposta
-  - **Mudança de equipe**: Quando desenvolvedores saem
-  - **Auditoria**: Como boa prática de segurança
-</Accordion>
-
-<Accordion title="Como fazer rotação?">
-  1. **Crie uma nova** API Key
-  2. **Atualize seus sistemas** com a nova chave
-  3. **Teste o funcionamento** em staging
-  4. **Deploy em produção**
-  5. **Revogue a chave antiga** após confirmação
-</Accordion>
+<AccordionGroup>
+  <Accordion title="Quando fazer rotação?">
+    - **Periodicidade**: A cada 6-12 meses
+    - **Comprometimento**: Se suspeitar que foi exposta
+    - **Mudança de equipe**: Quando desenvolvedores saem
+    - **Auditoria**: Como boa prática de segurança
+  </Accordion>
+  
+  <Accordion title="Como fazer rotação?">
+    1. **Crie uma nova** API Key
+    2. **Atualize seus sistemas** com a nova chave
+    3. **Teste o funcionamento** em staging
+    4. **Deploy em produção**
+    5. **Revogue a chave antiga** após confirmação
+  </Accordion>
+  
+  <Accordion title="Rotação sem downtime">
+    ```bash
+    # 1. Criar nova chave
+    # 2. Implementar fallback
+    const API_KEYS = [
+      process.env.NEW_API_KEY,    // Nova chave (prioritária)
+      process.env.OLD_API_KEY     // Chave antiga (backup)
+    ];
+    
+    // 3. Após validação, remover chave antiga
+    ```
+  </Accordion>
+</AccordionGroup>
 
 ## Segurança
 
@@ -158,186 +199,290 @@ cvn_live_abc123def456ghi789jkl012mno345pqr678
 
 ### Exemplo de Armazenamento Seguro
 
-<CodeGroup>
-```bash .env
-# Variáveis de ambiente
-CONNECTVETS_API_KEY=cvn_live_abc123def456ghi789jkl012mno345pqr678
+```bash
+# .env (NUNCA commitar este arquivo)
+CONNECTVETS_API_KEY=cvn_live_abc123def456...
 CONNECTVETS_ENVIRONMENT=production
+
+# .env.example (pode commitar)
+CONNECTVETS_API_KEY=your_api_key_here
+CONNECTVETS_ENVIRONMENT=development
 ```
 
-```javascript Node.js
-// Usando dotenv
-require('dotenv').config();
-
+```javascript
+// Uso correto em código
 const apiKey = process.env.CONNECTVETS_API_KEY;
 
 if (!apiKey) {
-  throw new Error('CONNECTVETS_API_KEY não configurada');
+  throw new Error('API Key não configurada');
 }
 
-const headers = {
-  'X-API-KEY': apiKey,
-  'Content-Type': 'application/json'
-};
-```
-
-```python Python
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-api_key = os.getenv('CONNECTVETS_API_KEY')
-if not api_key:
-    raise ValueError('CONNECTVETS_API_KEY não configurada')
-
-headers = {
-    'X-API-KEY': api_key,
-    'Content-Type': 'application/json'
-}
-```
-</CodeGroup>
-
-## Rate Limits
-
-### Limites por Tipo
-
-| Tipo | Requests/min | Requests/hora | Notas/mês |
-|------|--------------|---------------|-----------|
-| **Read** | 60 | 1.000 | - |
-| **Write** | 100 | 2.000 | 500 |
-| **Admin** | 200 | 5.000 | 2.000 |
-
-### Tratamento de Rate Limits
-
-<CodeGroup>
-```javascript JavaScript
-async function callAPIWithRetry(url, options, maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const response = await fetch(url, options);
-      
-      if (response.status === 429) {
-        const retryAfter = response.headers.get('Retry-After') || 60;
-        console.log(`Rate limit atingido. Aguardando ${retryAfter}s...`);
-        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-        continue;
-      }
-      
-      return response;
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-    }
+const response = await fetch('/api/notes', {
+  headers: {
+    'X-API-KEY': apiKey
   }
+});
+```
+
+## Rate Limiting
+
+As API Keys têm limites de uso para garantir estabilidade:
+
+### Limites Padrão
+
+| Tipo de Chave | Requisições/Minuto | Requisições/Hora | Upload/Minuto |
+|---------------|-------------------|-----------------|---------------|
+| **Admin** | 200 | 2.000 | 10 arquivos |
+| **Write** | 100 | 1.000 | 10 arquivos |
+| **Read** | 150 | 1.500 | - |
+
+### Headers de Rate Limit
+
+```http
+HTTP/1.1 200 OK
+X-RateLimit-Limit-Minute: 100
+X-RateLimit-Remaining-Minute: 87
+X-RateLimit-Reset-Minute: 1642694400
+X-RateLimit-Limit-Hour: 1000
+X-RateLimit-Remaining-Hour: 892
+```
+
+### Tratamento de Rate Limit
+
+```javascript
+async function makeAPIRequest(url, options) {
+  const response = await fetch(url, options);
+  
+  if (response.status === 429) {
+    const resetTime = response.headers.get('X-RateLimit-Reset-Minute');
+    const waitTime = (resetTime * 1000) - Date.now();
+    
+    console.log(`Rate limit atingido. Aguardando ${waitTime}ms`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    
+    // Tentar novamente
+    return makeAPIRequest(url, options);
+  }
+  
+  return response;
 }
 ```
-
-```python Python
-import time
-import requests
-
-def call_api_with_retry(url, headers, max_retries=3):
-    for i in range(max_retries):
-        try:
-            response = requests.get(url, headers=headers)
-            
-            if response.status_code == 429:
-                retry_after = int(response.headers.get('Retry-After', 60))
-                print(f"Rate limit atingido. Aguardando {retry_after}s...")
-                time.sleep(retry_after)
-                continue
-                
-            return response
-        except Exception as e:
-            if i == max_retries - 1:
-                raise e
-            time.sleep(1 * (i + 1))
-```
-</CodeGroup>
 
 ## Monitoramento
 
 ### Métricas Importantes
 
 <CardGroup cols={2}>
-  <Card title="Uso de Requests" icon="chart-line">
-    - Requests por minuto/hora
-    - Distribuição por endpoint
+  <Card
+    title="Uso da API"
+    icon="chart-line"
+  >
+    - Requisições por hora/dia
+    - Rate limits atingidos
     - Padrões de uso
     - Picos de tráfego
   </Card>
   
-  <Card title="Erros e Falhas" icon="exclamation-triangle">
-    - Taxa de erro por chave
-    - Tipos de erro mais comuns
-    - Latência de resposta
-    - Disponibilidade da API
+  <Card
+    title="Segurança"
+    icon="shield"
+  >
+    - Tentativas de acesso negado
+    - IPs suspeitos
+    - Padrões anômalos
+    - Última utilização
   </Card>
 </CardGroup>
 
 ### Dashboard de Monitoramento
 
-Acesse `https://notes.connectvets.com.br/settings/api-keys` para visualizar:
+```javascript
+// Exemplo de métricas no painel
+{
+  "api_key_id": "key_123456789",
+  "last_used_at": "2024-02-14T18:25:43Z",
+  "total_requests_today": 1247,
+  "rate_limit_hits": 3,
+  "unique_ips": 2,
+  "most_used_endpoints": [
+    "/notes",
+    "/notes/{id}",
+    "/webhooks"
+  ]
+}
+```
 
-- **Uso atual** vs limites
-- **Histórico** de requests
-- **Logs** de auditoria
-- **Alertas** de segurança
+## Múltiplas Clínicas
+
+### Estratégias de Gerenciamento
+
+<AccordionGroup>
+  <Accordion title="Uma API Key por Clínica">
+    **Recomendado** para a maioria dos casos
+    
+    ```javascript
+    const clinicAPIKeys = {
+      'clinica_centro': 'cvn_live_abc123...',
+      'clinica_zona_sul': 'cvn_live_def456...',
+      'clinica_matriz': 'cvn_live_ghi789...'
+    };
+    
+    function getAPIKey(clinicId) {
+      return clinicAPIKeys[clinicId];
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="API Key Master + Tenant Header">
+    Para grandes volumes com muitas clínicas
+    
+    ```javascript
+    // Usando header adicional (futuro)
+    const response = await fetch('/api/notes', {
+      headers: {
+        'X-API-KEY': masterApiKey,
+        'X-Tenant-ID': clinicId
+      }
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Mapeamento de Clínicas
+
+```javascript
+// Configuração centralizada
+const clinicsConfig = {
+  'clinica_001': {
+    name: 'Clínica Centro Veterinário',
+    apiKey: process.env.CLINIC_001_API_KEY,
+    webhookUrl: 'https://clinic001.com/webhook',
+    settings: { autoNotify: true }
+  },
+  'clinica_002': {
+    name: 'PetCare Zona Sul', 
+    apiKey: process.env.CLINIC_002_API_KEY,
+    webhookUrl: 'https://petcare.com/notifications',
+    settings: { autoNotify: false }
+  }
+};
+```
 
 ## Troubleshooting
 
 ### Erros Comuns
 
-<Accordion title="401 Unauthorized">
-  **Causa**: API Key inválida, expirada ou mal formatada
+<AccordionGroup>
+  <Accordion title="401 - Unauthorized">
+    **Causas possíveis:**
+    - API Key inválida ou inexistente
+    - Chave desativada
+    - Header mal formatado
+    
+    **Soluções:**
+    ```javascript
+    // Verificar header
+    headers: {
+      'X-API-KEY': 'cvn_live_abc123...' // Sem espaços extras
+    }
+    
+    // Verificar se chave está ativa no painel
+    ```
+  </Accordion>
   
-  **Soluções**:
-  - Verifique se a chave está correta
-  - Confirme que não expirou
-  - Valide o formato do header
-  - Teste com nova API Key
-</Accordion>
+  <Accordion title="403 - Forbidden">
+    **Causas possíveis:**
+    - Chave sem permissão para a operação
+    - Tentativa de acesso a dados de outra clínica
+    
+    **Soluções:**
+    - Verificar tipo da chave (read/write/admin)
+    - Confirmar que está acessando dados corretos
+  </Accordion>
+  
+  <Accordion title="429 - Rate Limit">
+    **Causas possíveis:**
+    - Muitas requisições em pouco tempo
+    - Uploads em massa
+    
+    **Soluções:**
+    - Implementar backoff exponencial
+    - Distribuir requisições ao longo do tempo
+    - Considerar upgrade do plano
+  </Accordion>
+</AccordionGroup>
 
-<Accordion title="403 Forbidden">
-  **Causa**: API Key válida mas sem permissões necessárias
-  
-  **Soluções**:
-  - Verifique permissões da chave
-  - Use chave com nível adequado
-  - Contate administrador para upgrade
-  - Revise escopo da operação
-</Accordion>
+## Migração e Backup
 
-<Accordion title="429 Too Many Requests">
-  **Causa**: Excedeu limite de taxa da API Key
+### Backup de Configurações
+
+```bash
+# Script para backup de configurações
+#!/bin/bash
+
+echo "Backup das API Keys ativas..."
+
+curl -H "X-API-KEY: $ADMIN_KEY" \
+  https://api.connectvets.com/admin/api-keys \
+  | jq '.[] | {id, name, type, created_at}' \
+  > api_keys_backup_$(date +%Y%m%d).json
+
+echo "Backup concluído!"
+```
+
+### Auditoria
+
+```javascript
+// Relatório de uso das API Keys
+async function generateAPIKeyReport() {
+  const keys = await getActiveAPIKeys();
   
-  **Soluções**:
-  - Implemente retry com backoff
-  - Distribua requisições no tempo
-  - Use múltiplas chaves se necessário
-  - Otimize frequência de chamadas
-</Accordion>
+  const report = await Promise.all(
+    keys.map(async (key) => {
+      const stats = await getKeyStats(key.id);
+      return {
+        name: key.name,
+        type: key.type,
+        lastUsed: stats.last_used_at,
+        requestsToday: stats.requests_today,
+        status: stats.last_used_at > oneWeekAgo ? 'active' : 'inactive'
+      };
+    })
+  );
+  
+  return report;
+}
+```
 
 ## Próximos Passos
 
 <CardGroup cols={2}>
-  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
-    Configure notificações automáticas
+  <Card
+    title="Autenticação"
+    icon="key"
+    href="/authentication"
+  >
+    Guia prático de como usar API Keys
   </Card>
-  <Card title="Tenants" icon="building" href="/concepts/tenants">
-    Organize por clínica com workspaces
+  <Card
+    title="Início Rápido"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Configure sua primeira API Key
   </Card>
-  <Card title="Integração" icon="puzzle-piece" href="/integration/onboarding">
-    Comece sua integração
+  <Card
+    title="Gerenciar Chaves"
+    icon="settings"
+    href="/api-reference/api-keys/list"
+  >
+    Endpoints para gerenciar API Keys
   </Card>
-  <Card title="Exemplos" icon="code" href="/examples/basic-integration">
-    Veja implementações práticas
+  <Card
+    title="Conceitos - Tenants"
+    icon="building"
+    href="/concepts/tenants"
+  >
+    Entenda o sistema multi-clínica
   </Card>
-</CardGroup>
-
----
-
-<Tip>
-**Precisa de ajuda?** Entre em contato no [Discord](https://discord.gg/uN4NxUGk) ou [WhatsApp](https://wa.me/5531888835141).
-</Tip> 
+</CardGroup> 
