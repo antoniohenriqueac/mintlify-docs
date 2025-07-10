@@ -40,6 +40,10 @@
     "style": "gradient"
   },
   "topbarLinks": [
+    {
+      "name": "Suporte",
+      "url": "https://discord.gg/uN4NxUGk"
+    }
   ],
   "topbarCtaButton": {
     "name": "Notes Web",
