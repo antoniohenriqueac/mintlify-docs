@@ -123,3 +123,31 @@ Se precisar atualizar as logos:
 Para dúvidas sobre o uso das imagens:
 - Email: branding@connectvets.com.br
 - Documentação: [Recursos da Marca](/brand-resources) 
+
+## 🚨 Troubleshooting - Problemas Conhecidos
+
+### Logo Pequena em Produção
+
+**Problema**: A logo aparece no tamanho correto em desenvolvimento (localhost) mas fica pequena em produção.
+
+**Causa**: O arquivo `Logo_Black.png` (587KB) é muito grande. O Mintlify aplica otimizações automáticas em produção que comprimem agressivamente imagens grandes, resultando em perda de qualidade e tamanho reduzido.
+
+**Solução**:
+1. **Otimizar o arquivo Logo_Black.png**:
+   - Redimensionar para máximo 400 x 100px
+   - Comprimir para menos de 100KB
+   - Manter formato PNG
+
+2. **Especificações recomendadas para Mintlify**:
+   - Tamanho máximo do arquivo: 50-100KB
+   - Dimensões ideais: 250 x 150px ou 400 x 100px
+   - Altura máxima: 30px
+   - Formato: PNG otimizado
+
+3. **Ferramentas para otimização**:
+   - TinyPNG (online)
+   - ImageOptim (Mac)
+   - Photoshop "Save for Web"
+   - GIMP (gratuito)
+
+**Status**: ⚠️ Logo_Black.png precisa ser otimizada 
