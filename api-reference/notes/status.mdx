@@ -1,0 +1,23 @@
+---
+title: 'Obter Status da Nota'
+openapi: 'GET /notes/{noteId}/status'
+---
+
+## Casos de Uso
+
+Este endpoint é ideal para:
+
+- **Polling de status**: Verificar periodicamente se uma transcrição foi concluída
+- **Integração assíncrona**: Aguardar conclusão antes de buscar dados completos
+- **Monitoramento**: Acompanhar o progresso de processamento em lote
+- **UI responsiva**: Atualizar interface com status em tempo real
+
+## Notas Importantes
+
+<Warning>
+  Para evitar sobrecarga, implemente um intervalo de pelo menos 5 segundos entre verificações de status da mesma nota.
+</Warning>
+
+<Info>
+  Notas com status `completed` podem ainda ter `valid: false` se falharam na validação. Use o endpoint `/notes/{noteId}` para obter detalhes sobre possíveis erros.
+</Info> 

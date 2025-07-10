@@ -117,7 +117,8 @@
       "pages": [
         "api-reference/notes/create",
         "api-reference/notes/list",
-        "api-reference/notes/get"
+        "api-reference/notes/get",
+        "api-reference/notes/status"
       ]
     },
     {

@@ -12,10 +12,8 @@ info:
     url: https://connectvets.com.br/terms
 
 servers:
-  - url: https://api.connectvets.com.br
-    description: Produção
-  - url: https://api-sandbox.connectvets.com.br
-    description: Sandbox
+  - url: https://api-notes-h.connectvets.com.br/v1
+    description: Homologação
 
 security:
   - ApiKeyAuth: []
@@ -167,6 +165,86 @@ paths:
           $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /notes/{noteId}/status:
+    get:
+      tags:
+        - Notes
+      summary: Obter status da nota
+      description: Retorna o status atual de transcrição de uma nota específica
+      operationId: getNoteStatus
+      parameters:
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID da nota para verificar o status
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Status retornado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/StatusResult'
+              examples:
+                completed:
+                  summary: Transcrição concluída
+                  value:
+                    data:
+                      status: "completed"
+                      valid: true
+                processing:
+                  summary: Em processamento
+                  value:
+                    data:
+                      status: "processing"
+                      valid: false
+                failed:
+                  summary: Falha no processamento
+                  value:
+                    data:
+                      status: "failed"
+                      valid: false
+        '400':
+          description: ID da nota inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "bad_request"
+                message: "Invalid note id"
+                code: "INVALID_NOTE_ID"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Permissões insuficientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "forbidden"
+                message: "Note does not belong to tenant"
+                code: "NOTE_ACCESS_DENIED"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          description: Rate limit excedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "too_many_requests"
+                message: "Rate limit exceeded"
+                code: "RATE_LIMIT_EXCEEDED"
 
   /api-keys:
     post:
@@ -425,6 +503,25 @@ components:
           type: string
           description: Ordem da seção
           example: "1"
+
+    StatusResult:
+      type: object
+      required:
+        - status
+        - valid
+      properties:
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: Status atual da transcrição
+          example: "completed"
+        valid:
+          type: boolean
+          description: Indica se a nota foi validada após o processamento
+          example: true
+      example:
+        status: "completed"
+        valid: true
 
     ApiKey:
       type: object

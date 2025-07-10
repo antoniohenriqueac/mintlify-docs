@@ -122,6 +122,7 @@ A API ConnectVets Notes oferece endpoints para gerenciar **notas de consultas ve
 | `/notes` | POST | Criar nova nota com upload de áudio |
 | `/notes` | GET | Listar notas com filtros |
 | `/notes/{id}` | GET | Obter detalhes de uma nota específica |
+| `/notes/{id}/status` | GET | Obter status de transcrição de uma nota |
 
 ## Tipos de Dados
 
@@ -149,6 +150,15 @@ A API ConnectVets Notes oferece endpoints para gerenciar **notas de consultas ve
   "label": "anamnesis",
   "content": "Paciente apresenta histórico de...",
   "order": "1"
+}
+```
+
+### StatusResult
+
+```json
+{
+  "status": "completed",
+  "valid": true
 }
 ```
 
@@ -212,6 +222,10 @@ GET /notes?days=7
 # Combinando filtros
 GET /notes?transcription_status=completed&days=30&limit=50
 ```
+
+<Info>
+**Dica**: Para verificar apenas o status de uma nota específica sem buscar todos os dados, use o endpoint [`/notes/{noteId}/status`](/api-reference/notes/status).
+</Info>
 
 ## Upload de Arquivos
 
