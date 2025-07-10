@@ -5,9 +5,21 @@ description: 'Documentação completa da API REST do ConnectVets Notes'
 
 ## Base URL
 
+### Produção
 ```
-https://api.connectvets.com
+https://api-notes.connectvets.com.br/v1
 ```
+
+### Homologação
+```
+https://api-notes-h.connectvets.com.br/v1
+```
+
+<Info>
+**Frontend da aplicação**:
+- Produção: [https://notes.connectvets.com.br](https://notes.connectvets.com.br)
+- Homologação: [https://notes-h.connectvets.com.br](https://notes-h.connectvets.com.br)
+</Info>
 
 ## Autenticação
 
@@ -17,53 +29,35 @@ Para todas as requisições utilize o header:
 X-API-KEY: <SUA_API_KEY>
 ```
 
-Cada cliente possui uma chave única (`API_KEY`). Requisições sem este header, ou com chave inválida, receberão **HTTP 401 – Unauthorized**.
-
 <Warning>
   Sua API Key é secreta! Nunca a compartilhe em código público ou logs.
 </Warning>
 
-## Onboarding
+## Obtendo sua API Key
 
-O processo de integração à plataforma ConnectVets Notes começa pela criação e gestão da sua **API KEY**, que identifica **uma Clínica/Workspace** de forma única.
+Para obter acesso à API:
 
-### Gerar a chave
-- O **dono da clínica** acessa o painel **ConnectVets Notes → Configurações → API Keys**.
-- Clique em **"Gerar nova chave"**. Uma string longa (ex.: `cvn_live_abcdef123456`) será exibida **uma única vez**.
-- A chave deve então ser enviada para a equipe/empresa responsável pela integração (ex.: DoctorVet).
-
-### Armazenar com segurança
-- Copie a chave imediatamente e guarde-a em um cofre de segredos (AWS Secrets Manager, Vault, KeePass, etc.) ou variável de ambiente.
-- Nunca comprometa a chave em repositórios de código, screenshots ou logs.
-
-### Utilizar em cada requisição
-- Envie a chave no header `X-API-KEY`.
-- Exemplo:
-
-   ```http
-   X-API-KEY: cvn_live_abcdef123456
-   ```
-
-### Rotação e múltiplas clínicas
-- Você pode gerar **várias chaves**, cada uma representando um Tenant/Clínica diferente.
-- Caso uma empresa gerencie múltiplas clínicas, salve e utilize a **API KEY correspondente** em cada requisição, conforme a clínica de destino.
-- Para rotacionar, publique a nova chave nos seus sistemas, valide o funcionamento e, em seguida, revogue a chave antiga no painel.
+1. **Contate nossa equipe** via [Discord ConnectVets](https://discord.gg/uN4NxUGk)
+2. **Forneça informações** sobre seu projeto e casos de uso
+3. **Receba suas credenciais** com instruções de configuração
+4. **Comece a integrar** seguindo nossa documentação
 
 <Info>
-A **API KEY** identifica um **Workspace/Clínica** dentro da plataforma. Ela não expira por tempo; gerencie cada chave como um segredo de produção e mantenha um mapeamento claro quando lidar com múltiplas clínicas.
+Cada API Key possui limites específicos de uso. Entre em contato para discutir suas necessidades.
 </Info>
 
 ## Convenções de Campos
 
-* **UUIDs** são strings no formato RFC 4122.
-* Datas e horários utilizam ISO 8601 em UTC (`YYYY-MM-DDThh:mm:ssZ`).
+* **UUIDs** são strings no formato RFC 4122
+* **Datas** utilizam ISO 8601 em UTC (`YYYY-MM-DDThh:mm:ssZ`)
+* **Status** são strings em lowercase com underscore
 
 ## Rate Limiting
 
 A API implementa rate limiting baseado na API Key:
 
-- **Limite por minuto**: 100-200 requisições
-- **Limite por hora**: 1.000-2.000 requisições
+- **Requisições por minuto**: Conforme seu plano
+- **Requisições por hora**: Conforme seu plano
 
 Headers de resposta incluem informações sobre os limites:
 
@@ -82,7 +76,7 @@ Todas as respostas de sucesso seguem um formato JSON consistente:
 ```json
 {
   "data": {}, // ou array para listas
-  "pagination": {} // apenas para endpoints paginados
+  "meta": {} // informações adicionais como paginação
 }
 ```
 
@@ -112,9 +106,22 @@ Respostas de erro incluem informações detalhadas:
 | `401` | Unauthorized | API Key ausente ou inválida |
 | `403` | Forbidden | Permissões insuficientes |
 | `404` | Not Found | Recurso não encontrado |
+| `413` | Payload Too Large | Arquivo muito grande |
 | `422` | Unprocessable Entity | Dados válidos mas processamento falhou |
 | `429` | Too Many Requests | Rate limit excedido |
 | `500` | Internal Server Error | Erro interno do servidor |
+
+## Endpoints Disponíveis
+
+A API ConnectVets Notes oferece endpoints para gerenciar **notas de consultas veterinárias**:
+
+### Notes
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/notes` | POST | Criar nova nota com upload de áudio |
+| `/notes` | GET | Listar notas com filtros |
+| `/notes/{id}` | GET | Obter detalhes de uma nota específica |
 
 ## Tipos de Dados
 
@@ -122,15 +129,12 @@ Respostas de erro incluem informações detalhadas:
 
 ```json
 {
-  "id": "uuid",
-  "name": "string",
-  "gender": "male|female|unidentified", 
-  "audio_name": "string",
-  "audio_url": "string",
-  "transcription_status": "pending|processing|completed|failed",
-  "transcription_url": "string",
-  "external_id": "string",
-  "metadata": [{"key": "string", "value": "string"}],
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Rex",
+  "gender": "male",
+  "transcription_status": "completed",
+  "external_id": "CLIENTE_123",
+  "metadata": [{"key": "veterinario", "value": "Dr. Silva"}],
   "created_at": "2024-02-14T18:25:43Z",
   "updated_at": "2024-02-14T18:30:23Z"
 }
@@ -140,28 +144,20 @@ Respostas de erro incluem informações detalhadas:
 
 ```json
 {
-  "id": "uuid",
-  "title": "string",
-  "label": "string", 
-  "content": "string",
-  "order": "string"
+  "id": "9b7d8b6a-12e3-45fa-9c1c-7e12f5c4a1b2",
+  "title": "Anamnese",
+  "label": "anamnesis",
+  "content": "Paciente apresenta histórico de...",
+  "order": "1"
 }
 ```
 
-### ApiKey
+### MetadataItem
 
 ```json
 {
-  "id": "uuid",
-  "name": "string",
-  "key_prefix": "string",
-  "type": "read|write|admin",
-  "rate_limit_per_minute": 100,
-  "rate_limit_per_hour": 1000,
-  "is_active": true,
-  "created_at": "2024-02-14T18:25:43Z",
-  "updated_at": "2024-02-14T18:30:23Z",
-  "last_used_at": "2024-02-14T18:30:23Z"
+  "key": "veterinario",
+  "value": "Dr. Silva"
 }
 ```
 
@@ -172,140 +168,93 @@ Endpoints que retornam listas implementam paginação:
 ### Parâmetros de Query
 
 - `page`: Número da página (padrão: 1)
-- `per_page`: Itens por página (padrão: 20, máximo: 100)
+- `limit`: Itens por página (padrão: 10, máximo: 100)
 
 ### Resposta
 
 ```json
 {
   "data": [...],
-  "pagination": {
-    "current_page": 1,
-    "total_pages": 10,
-    "total_items": 200,
-    "per_page": 20
+  "meta": {
+    "total": 200,
+    "page": 1,
+    "limit": 10,
+    "total_pages": 20
   }
 }
 ```
 
-## Filtros Comuns
+## Filtros para Notes
 
-Muitos endpoints suportam filtros via query parameters:
+O endpoint `/notes` suporta diversos filtros via query parameters:
 
-### Notes
-- `external_id`: Filtrar por ID externo
-- `transcription_status`: Filtrar por status
-- `valid`: Filtrar por notas válidas/inválidas
+- `transcription_status`: Filtrar por status (`pending`, `processing`, `completed`, `failed`)
 - `name`: Busca parcial por nome do paciente
 - `from` / `to`: Filtrar por data (YYYY-MM-DD)
+- `days`: Últimos X dias
+- `external_id`: Filtrar por ID externo
 
-### Exemplo
-```
-GET /notes?transcription_status=completed&from=2024-01-01&to=2024-01-31&page=2&per_page=50
-```
+### Exemplos
 
-## Content Types
-
-### Upload de Áudio
-```http
-Content-Type: multipart/form-data
-```
-
-### JSON APIs
-```http
-Content-Type: application/json
-```
-
-## Headers Recomendados
-
-```http
-X-API-KEY: sua_chave_da_api
-Content-Type: application/json
-Accept: application/json
-User-Agent: SeuApp/1.0.0
-```
-
-## Versionamento
-
-A API atualmente está na versão 1 e é estável. Mudanças futuras serão:
-
-- **Backward compatible**: Novos campos e endpoints
-- **Breaking changes**: Nova versão da API (v2, v3, etc.)
-
-## SDKs e Bibliotecas
-
-### JavaScript/TypeScript
 ```bash
-npm install @connectvets/notes-api
+# Notas processadas
+GET /notes?transcription_status=completed
+
+# Notas de um período
+GET /notes?from=2024-01-01&to=2024-01-31
+
+# Notas de um paciente
+GET /notes?name=Rex
+
+# Últimos 7 dias
+GET /notes?days=7
+
+# Combinando filtros
+GET /notes?transcription_status=completed&days=30&limit=50
 ```
 
-### Python
+## Upload de Arquivos
+
+O endpoint `POST /notes` aceita upload de arquivos de áudio usando `multipart/form-data`:
+
 ```bash
-pip install connectvets-notes
+curl -X POST "https://api.connectvets.com.br/v1/notes" \
+  -H "X-API-KEY: sua_api_key_aqui" \
+  -F "audio=@caminho/para/audio.mp3" \
+  -F "metadata={\"patient_name\":\"Rex\",\"owner_name\":\"João Silva\"}"
 ```
 
-### Go
-```bash
-go get github.com/connectvets/notes-go
+## Tratamento de Erros
+
+### Retry com Backoff
+
+Para erros temporários (429, 500), implemente retry com backoff exponencial:
+
+```javascript
+async function apiCall(url, options, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After') || 30;
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        continue;
+      }
+      
+      if (response.ok) return await response.json();
+      
+      throw new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      if (attempt === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+}
 ```
 
-## Endpoints Principais
+---
 
-<CardGroup cols={2}>
-  <Card
-    title="Notes"
-    icon="file-text"
-    href="/api-reference/notes/create"
-  >
-    Criar, listar e gerenciar notas de consultas
-  </Card>
-  <Card
-    title="API Keys"
-    icon="key"
-    href="/api-reference/api-keys/create"
-  >
-    Gerenciar chaves de acesso à API
-  </Card>
-  <Card
-    title="Webhooks" 
-    icon="webhook"
-    href="/api-reference/webhooks/create"
-  >
-    Configurar notificações automáticas
-  </Card>
-  <Card
-    title="Note Sections"
-    icon="list"
-    href="/api-reference/notes/get"
-  >
-    Acessar seções estruturadas das notas
-  </Card>
-</CardGroup>
-
-## Ambientes
-
-### Produção
-```
-https://api.connectvets.com.br
-```
-
-### Desenvolvimento
-```
-http://localhost:8080
-```
-
-### Sandbox/Teste
-```
-https://api-sandbox.connectvets.com.br
-```
-
-<Tip>
-  Use chaves de API diferentes para cada ambiente. Chaves de produção começam com `cvn_live_`, enquanto chaves de teste começam com `cvn_test_`
-</Tip>
-
-## Suporte
-
-- **Documentação**: Esta documentação
-- **Email**: suporte@connectvets.com.br
-- **GitHub Issues**: Para bugs e melhorias
-- **Status da API**: https://status.connectvets.com.br 
+<Info>
+**Próximo passo**: Explore os endpoints de Notes na seção [API Endpoints](/api-reference/notes/create) ou veja [exemplos práticos](/examples/basic-integration).
+</Info> 

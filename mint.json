@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "ConnectVets Notes",
+  "name": "ConnectVets Notes API",
   "logo": {
     "dark": "/img/Logo_White.png",
     "light": "/img/Logo_Black.png",
@@ -28,10 +28,10 @@
     "isHidden": false
   },
   "metadata": {
-    "og:site_name": "ConnectVets Notes Documentation",
+    "og:site_name": "ConnectVets Notes API Documentation",
     "og:type": "website",
-    "og:title": "ConnectVets Notes - API para Transcrição e Análise de Consultas Veterinárias",
-    "og:description": "Documentação completa da API ConnectVets Notes para integração de transcrição de áudio e análise inteligente de consultas veterinárias.",
+    "og:title": "ConnectVets Notes - API para Transcrição de Consultas Veterinárias",
+    "og:description": "Documentação completa da API ConnectVets Notes para integração de transcrição de áudio e análise de consultas veterinárias.",
     "twitter:card": "summary_large_image",
     "twitter:title": "ConnectVets Notes API Documentation",
     "twitter:description": "API para transcrição e análise de consultas veterinárias"
@@ -46,8 +46,8 @@
     }
   ],
   "topbarCtaButton": {
-    "name": "Notes Web",
-    "url": "https://notes.connectvets.com.br",
+    "name": "Contato",
+    "url": "https://wa.me/5531888835141",
     "style": "pill"
   },
   "tabs": [
@@ -70,16 +70,6 @@
       "url": "https://wa.me/5531888835141"
     },
     {
-      "name": "Instagram",
-      "icon": "instagram",
-      "url": "https://www.instagram.com/connect.vets/"
-    },
-    {
-      "name": "Blog",
-      "icon": "blog",
-      "url": "https://connectvets.com.br/connectvets-blog/"
-    },
-    {
       "name": "Discord",
       "icon": "discord",
       "url": "https://discord.gg/uN4NxUGk"
@@ -100,7 +90,6 @@
       "icon": "lightbulb",
       "pages": [
         "concepts/notes",
-        "concepts/tenants", 
         "concepts/api-keys",
         "concepts/webhooks"
       ]
@@ -128,23 +117,6 @@
             "api-reference/notes/list",
             "api-reference/notes/get"
           ]
-        },
-        {
-          "group": "API Keys",
-          "icon": "key",
-          "pages": [
-            "api-reference/api-keys/create",
-            "api-reference/api-keys/list", 
-            "api-reference/api-keys/delete"
-          ]
-        },
-        {
-          "group": "Webhooks",
-          "icon": "webhook",
-          "pages": [
-            "api-reference/webhooks/create",
-            "api-reference/webhooks/list"
-          ]
         }
       ]
     },
@@ -156,20 +128,10 @@
         "examples/advanced-filtering",
         "examples/webhook-handling"
       ]
-    },
-    {
-      "group": "Recursos",
-      "icon": "folder-open",
-      "pages": [
-        "brand-resources"
-      ]
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/connectvets",
     "linkedin": "https://linkedin.com/company/connectvets",
-    "twitter": "https://twitter.com/connectvets",
-    "instagram": "https://instagram.com/connectvets",
     "discord": "https://discord.gg/uN4NxUGk"
   },
   "feedback": {
@@ -178,12 +140,7 @@
     "raiseIssue": true
   },
   "search": {
-    "prompt": "Pesquisar na documentação ConnectVets Notes..."
-  },
-  "analytics": {
-    "ga4": {
-      "measurementId": "G-XXXXXXXXXX"
-    }
+    "prompt": "Pesquisar na documentação..."
   },
   "seo": {
     "indexHiddenPages": false

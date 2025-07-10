@@ -1,48 +1,56 @@
 ---
-title: 'Conceitos - Notas'
-description: 'Entenda como funcionam as notas de consulta no ConnectVets Notes'
+title: 'Como funcionam as Notas'
+description: 'Entenda o fluxo de processamento de notas de consulta veterinária'
 ---
 
 ## O que são Notas?
 
-As **Notas** são o elemento central da plataforma ConnectVets Notes. Elas representam transcrições estruturadas de consultas veterinárias, convertendo áudio em texto organizado e pesquisável.
+As **Notas** são transcrições estruturadas de consultas veterinárias. Você envia um arquivo de áudio via API e recebe de volta texto organizado em seções úteis como anamnese, diagnóstico e tratamento.
 
-## Ciclo de Vida de uma Nota
+## Fluxo de Processamento
 
-```mermaid
-graph LR
-    A[Áudio Enviado] --> B[pending]
-    B --> C[processing] 
-    C --> D[completed]
-    C --> E[failed]
-    D --> F[Seções Criadas]
-```
+<Steps>
+  <Step title="Upload do áudio">
+    Envie seu arquivo de áudio via POST para `/v1/notes`
+  </Step>
+  <Step title="Processamento">
+    Nossa IA processa e transcreve o áudio (1-5 minutos)
+  </Step>
+  <Step title="Estruturação">
+    O texto é automaticamente organizado em seções médicas
+  </Step>
+  <Step title="Disponibilização">
+    Os dados ficam disponíveis via GET `/v1/notes/{id}`
+  </Step>
+</Steps>
 
-### Estados da Transcrição
+## Estados de Processamento
+
+Uma nota pode ter os seguintes status:
 
 <CardGroup cols={2}>
-  <Card title="pending" icon="clock">
+  <Card title="pending" icon="clock" color="#f59e0b">
     **Aguardando processamento**
-    - Áudio foi recebido e validado
-    - Aguardando na fila de processamento
+    
+    Áudio foi recebido e está na fila
   </Card>
   
-  <Card title="processing" icon="gear">
+  <Card title="processing" icon="gear" color="#3b82f6">
     **Em processamento**
-    - IA está transcrevendo o áudio
-    - Pode levar alguns minutos
+    
+    IA está transcrevendo o áudio
   </Card>
   
-  <Card title="completed" icon="check">
+  <Card title="completed" icon="check" color="#10b981">
     **Concluído**
-    - Transcrição finalizada com sucesso
-    - Seções estruturadas disponíveis
+    
+    Transcrição finalizada e seções disponíveis
   </Card>
   
-  <Card title="failed" icon="x">
+  <Card title="failed" icon="x" color="#ef4444">
     **Falhou**
-    - Erro no processamento
-    - Verifique qualidade do áudio
+    
+    Erro no processamento (verifique qualidade do áudio)
   </Card>
 </CardGroup>
 
@@ -65,84 +73,13 @@ graph LR
 |-------|------|-----------|
 | `id` | UUID | Identificador único da nota |
 | `name` | String | Nome do paciente |
-| `gender` | Enum | Sexo: `male`, `female`, `unidentified` |
+| `gender` | String | Sexo: `male`, `female`, `unidentified` |
 | `external_id` | String | ID do seu sistema (opcional) |
-| `transcription_status` | Enum | Status do processamento |
+| `transcription_status` | String | Status atual do processamento |
 
-### Arquivos de Áudio
+### Seções Estruturadas
 
-```json
-{
-  "audio_name": "rex_consulta_20240214.wav",
-  "audio_url": "https://cdn.connectvets.com.br/audio/6a4fe1de.wav"
-}
-```
-
-- **audio_name**: Nome original do arquivo
-- **audio_url**: URL para download do áudio
-
-### Transcrição
-
-```json
-{
-  "transcription_url": "https://cdn.connectvets.com.br/transcripts/6a4fe1de.txt"
-}
-```
-
-<Info>
-  A `transcription_url` só fica disponível quando o status é `completed`
-</Info>
-
-### Metadados Personalizados
-
-```json
-{
-  "metadata": [
-    {"key": "procedimento", "value": "vacina"},
-    {"key": "peso", "value": "12.5kg"},
-    {"key": "idade", "value": "3 anos"}
-  ]
-}
-```
-
-Use metadados para armazenar informações adicionais específicas do seu sistema.
-
-## Seções de Nota
-
-Quando uma nota é processada com sucesso, ela é automaticamente dividida em **seções estruturadas**:
-
-### Seções Padrão
-
-<CardGroup cols={2}>
-  <Card title="Anamnese" icon="clipboard-list">
-    **Histórico do paciente**
-    - Sintomas relatados
-    - Histórico médico
-    - Comportamento
-  </Card>
-  
-  <Card title="Exame Físico" icon="stethoscope">
-    **Avaliação física**
-    - Peso, temperatura
-    - Sinais vitais
-    - Observações físicas
-  </Card>
-  
-  <Card title="Diagnóstico" icon="diagnoses">
-    **Conclusões médicas**
-    - Diagnóstico principal
-    - Diagnósticos diferenciais
-  </Card>
-  
-  <Card title="Tratamento" icon="pills">
-    **Plano terapêutico**
-    - Medicações prescritas
-    - Dosagens
-    - Instruções
-  </Card>
-</CardGroup>
-
-### Estrutura das Seções
+Quando processada, a nota é dividida automaticamente em seções:
 
 ```json
 {
@@ -153,219 +90,142 @@ Quando uma nota é processada com sucesso, ela é automaticamente dividida em **
       "label": "anamnesis",
       "content": "Paciente apresenta histórico de...",
       "order": "1"
+    },
+    {
+      "title": "Diagnóstico", 
+      "label": "diagnosis",
+      "content": "Após exame físico, diagnosticado...",
+      "order": "2"
     }
   ]
 }
 ```
 
-| Campo | Descrição |
-|-------|-----------|
-| `title` | Nome exibido da seção |
-| `label` | Identificador interno da seção |
-| `content` | Conteúdo transcrito |
-| `order` | Ordem de exibição |
+### Seções Padrão
+
+<CardGroup cols={2}>
+  <Card title="Anamnese" icon="clipboard-list">
+    **Histórico do paciente**
+    - Sintomas relatados pelo tutor
+    - Histórico médico anterior
+    - Observações de comportamento
+  </Card>
+  
+  <Card title="Exame Físico" icon="stethoscope">
+    **Avaliação física**
+    - Peso, temperatura, sinais vitais
+    - Observações do exame clínico
+    - Alterações encontradas
+  </Card>
+  
+  <Card title="Diagnóstico" icon="diagnoses">
+    **Conclusões médicas**
+    - Diagnóstico principal
+    - Diagnósticos diferenciais
+    - Suspeitas clínicas
+  </Card>
+  
+  <Card title="Tratamento" icon="pills">
+    **Plano terapêutico**
+    - Medicações prescritas
+    - Dosagens e frequência
+    - Instruções para o tutor
+  </Card>
+</CardGroup>
+
+## Metadados Personalizados
+
+Você pode incluir informações adicionais ao criar uma nota:
+
+```json
+{
+  "metadata": [
+    {"key": "procedimento", "value": "vacina"},
+    {"key": "peso", "value": "12.5kg"},
+    {"key": "idade", "value": "3 anos"},
+    {"key": "veterinario", "value": "Dr. Silva"}
+  ]
+}
+```
+
+**Casos de uso para metadados:**
+- Identificação do veterinário
+- Tipo de procedimento
+- Informações do paciente
+- Referências do seu sistema
 
 ## Requisitos de Áudio
 
 ### Formato Recomendado
 
-<Warning>
-  Para melhores resultados, use **WAV, 16kHz, mono, 16-bit**
-</Warning>
+<Tip>
+Para melhores resultados, use **WAV, 16kHz, mono, 16-bit**
+</Tip>
 
-**Especificações técnicas:**
-- **Formato**: WAV (recomendado) ou FLAC
+**Especificações ideais:**
+- **Formato**: WAV ou FLAC
 - **Taxa de amostragem**: 16.000 Hz
 - **Canais**: Mono (1 canal)
 - **Bit depth**: 16-bit
-- **Codificação**: PCM linear
 
 ### Formatos Aceitos
 
-| Formato | Suporte | Observações |
-|---------|---------|-------------|
-| WAV | ✅ Ideal | Melhor qualidade |
-| FLAC | ✅ Bom | Compressão sem perda |
-| MP3 | ⚠️ Aceito | Qualidade reduzida |
-| M4A | ⚠️ Aceito | Qualidade reduzida |
+| Formato | Suporte | Qualidade |
+|---------|---------|-----------|
+| WAV | ✅ Ideal | Excelente |
+| FLAC | ✅ Bom | Boa |
+| MP3 | ⚠️ Aceito | Regular |
+| M4A | ⚠️ Aceito | Regular |
 
-### Qualidade do Áudio
+### Dicas para Melhor Qualidade
 
-**Dicas para melhor transcrição:**
+<CardGroup cols={2}>
+  <Card title="🔇 Ambiente Silencioso" icon="volume-mute">
+    Minimize ruído de fundo durante a gravação
+  </Card>
+  
+  <Card title="🎤 Distância Adequada" icon="microphone">
+    Mantenha 30-50cm de distância do microfone
+  </Card>
+  
+  <Card title="🗣️ Fala Clara" icon="comment">
+    Evite falar muito rápido ou com volume muito baixo
+  </Card>
+  
+  <Card title="⏱️ Duração" icon="clock">
+    Entre 1 minuto e 1 hora de duração
+  </Card>
+</CardGroup>
 
-- **Ambiente silencioso**: Minimize ruído de fundo
-- **Distância adequada**: 30-50cm do microfone
-- **Fala clara**: Evite falar muito rápido
-- **Volume consistente**: Não muito baixo ou alto
+## Limitações
 
-## Filtros e Busca
+<Warning>
+**Limitações importantes:**
 
-### Filtros Disponíveis
+- **Tamanho máximo**: 100MB por arquivo
+- **Duração máxima**: 60 minutos
+- **Idioma**: Português brasileiro (primário)
+- **Qualidade**: Áudio com muito ruído pode falhar
+</Warning>
 
-Use estes parâmetros para filtrar notas:
+## Monitoramento via Webhook
 
-```http
-GET /notes?transcription_status=completed&name=rex&from=2024-01-01
-```
-
-| Parâmetro | Tipo | Exemplo | Descrição |
-|-----------|------|---------|-----------|
-| `external_id` | String | `CLIENTE_123` | ID do seu sistema |
-| `transcription_status` | Enum | `completed` | Status da transcrição |
-| `valid` | Boolean | `true` | Notas válidas/inválidas |
-| `name` | String | `rex` | Nome do paciente (busca parcial) |
-| `from` | Date | `2024-01-01` | Data inicial |
-| `to` | Date | `2024-01-31` | Data final |
-
-### Busca Textual
-
-Para buscar no conteúdo das seções, use a API de busca:
-
-```http
-GET /notes/search?q=vacina&section=treatment
-```
-
-## Webhooks para Notas
-
-Configure webhooks para receber notificações automáticas:
-
-### Eventos Disponíveis
-
-- `note.created`: Nova nota criada
-- `note.processing`: Processamento iniciado
-- `note.completed`: Transcrição concluída
-- `note.failed`: Processamento falhou
-
-### Payload do Webhook
+Ao invés de fazer polling, configure webhooks para receber notificações:
 
 ```json
 {
   "event": "note.completed",
   "data": {
-    "id": "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3",
-    "name": "Rex",
-    "transcription_status": "completed",
-    "external_id": "CLIENTE_123"
-  },
-  "timestamp": "2024-02-14T18:30:23Z"
-}
-```
-
-## Casos de Uso Comuns
-
-### 1. Integração com Sistema Veterinário
-
-```javascript
-// Enviar áudio após consulta
-async function processConsultation(patientId, audioFile) {
-  const formData = new FormData();
-  formData.append('audio', audioFile);
-  formData.append('name', patient.name);
-  formData.append('external_id', patientId);
-  
-  const response = await fetch('/notes', {
-    method: 'POST',
-    headers: { 'X-API-KEY': apiKey },
-    body: formData
-  });
-  
-  return response.json();
-}
-```
-
-### 2. Buscar Notas por Período
-
-```javascript
-// Relatório mensal
-async function getMonthlyReport(year, month) {
-  const from = `${year}-${month.toString().padStart(2, '0')}-01`;
-  const to = `${year}-${month.toString().padStart(2, '0')}-31`;
-  
-  const response = await fetch(
-    `/notes?from=${from}&to=${to}&transcription_status=completed&per_page=100`,
-    { headers: { 'X-API-KEY': apiKey } }
-  );
-  
-  return response.json();
-}
-```
-
-### 3. Sincronizar com Sistema Local
-
-```javascript
-// Verificar notas processadas
-async function syncProcessedNotes() {
-  const pendingNotes = await getLocalPendingNotes();
-  
-  for (const note of pendingNotes) {
-    const response = await fetch(`/notes/${note.id}`, {
-      headers: { 'X-API-KEY': apiKey }
-    });
-    
-    const updated = await response.json();
-    
-    if (updated.transcription_status === 'completed') {
-      await updateLocalNote(note.id, updated);
-    }
+    "note_id": "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3",
+    "status": "completed"
   }
 }
 ```
 
-## Melhores Práticas
+Veja mais em [Conceitos de Webhooks](/concepts/webhooks).
 
-### 📁 Organização
+---
 
-- Use `external_id` para vincular ao seu sistema
-- Padronize nomenclatura de pacientes
-- Configure metadados úteis para filtros
-
-### ⚡ Performance
-
-- Monitore o status via webhooks
-- Use paginação para listas grandes  
-- Cache resultados quando possível
-
-### 🔒 Segurança
-
-- Nunca exponha URLs de áudio publicamente
-- Use HTTPS sempre
-- Rotacione API keys periodicamente
-
-### 📊 Monitoramento
-
-- Acompanhe taxa de sucesso das transcrições
-- Monitore tempo de processamento
-- Configure alertas para falhas
-
-## Próximos Passos
-
-<CardGroup cols={2}>
-  <Card
-    title="Criar sua primeira nota"
-    icon="plus"
-    href="/api-reference/notes/create"
-  >
-    Veja como enviar áudio para transcrição
-  </Card>
-  <Card
-    title="Configurar webhooks"
-    icon="webhook"
-    href="/concepts/webhooks"
-  >
-    Receba notificações automáticas
-  </Card>
-  <Card
-    title="Filtros avançados"
-    icon="filter"
-    href="/examples/advanced-filtering"
-  >
-    Aprenda a buscar notas específicas
-  </Card>
-  <Card
-    title="Tenants/Clínicas"
-    icon="building"
-    href="/concepts/tenants"
-  >
-    Entenda o sistema multi-clínica
-  </Card>
-</CardGroup> 
+<Info>
+**Próximo passo**: Experimente criar sua primeira nota seguindo o [Guia de Início Rápido](/quickstart).
+</Info> 

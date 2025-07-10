@@ -18,10 +18,7 @@ interface Note {
   id: string;                    // UUID da nota
   name: string;                  // Nome do paciente
   gender: "male" | "female" | "unidentified"; // Sexo do paciente
-  audio_name: string;            // Nome do arquivo de áudio
-  audio_url: string;             // URL para download do áudio
   transcription_status: "pending" | "processing" | "completed" | "failed"; // Status da transcrição
-  transcription_url?: string;    // URL para download da transcrição (opcional)
   external_id?: string;          // ID do sistema externo (opcional)
   metadata: MetadataItem[];      // Metadados adicionais
   note_sections: NoteSection[];  // Seções estruturadas (apenas no GET /notes/{id})
@@ -37,9 +34,7 @@ interface Note {
   "name": "Rex",
   "gender": "male",
   "audio_name": "rex_visit_20240214.wav",
-  "audio_url": "https://cdn.connectvets.com/audio/6a4fe1de.wav",
   "transcription_status": "completed",
-  "transcription_url": "https://cdn.connectvets.com/transcripts/6a4fe1de.txt",
   "external_id": "CLIENTE_123",
   "metadata": [
     {"key": "procedimento", "value": "vacina"},
@@ -166,10 +161,7 @@ interface NoteListResponse {
       "id": "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3",
       "name": "Rex",
       "gender": "male",
-      "audio_name": "rex_visit_20240214.wav",
-      "audio_url": "https://cdn.connectvets.com/audio/6a4fe1de.wav",
       "transcription_status": "completed",
-      "transcription_url": "https://cdn.connectvets.com/transcripts/6a4fe1de.txt",
       "external_id": "CLIENTE_123",
       "metadata": [
         {"key": "procedimento", "value": "vacina"}

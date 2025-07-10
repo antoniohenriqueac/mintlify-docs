@@ -1,488 +1,210 @@
 ---
 title: 'API Keys'
-description: 'Entenda como funcionam as chaves de API no ConnectVets Notes'
+description: 'Entenda como funcionam as chaves de API para autenticação segura'
+icon: 'key'
 ---
 
-## O que são API Keys?
-
-As **API Keys** (Chaves de API) são tokens únicos que identificam e autenticam sua aplicação ou clínica ao usar a API ConnectVets Notes. Funcionam como uma "senha" que comprova que você tem permissão para acessar e usar nossos serviços.
-
-<Info>
-  Cada API Key é **única** e identifica um **Tenant/Clínica** específico dentro da plataforma.
-</Info>
+As **API Keys** são credenciais que autenticam e autorizam acesso à API ConnectVets Notes. Cada chave possui permissões e limites específicos baseados no seu plano.
 
 ## Como Funcionam
 
-### Anatomia de uma API Key
-
-As API Keys do ConnectVets seguem um formato específico para facilitar identificação:
-
-<CodeGroup>
-```text Estrutura Visual
-┌─────┬──────┬────────────────────────────────────────┐
-│ cvn │ live │ abc123def456ghi789jkl012mno345pqr678   │
-└─────┴──────┴────────────────────────────────────────┘
-  │     │       │
-  │     │       └── Token único (32 caracteres)
-  │     └────────── Ambiente (live/test)  
-  └──────────────── Prefixo ConnectVets Notes
-```
-
-```text Exemplo Real
-cvn_live_abc123def456ghi789jkl012mno345pqr678
-```
-</CodeGroup>
-
-<CardGroup cols={3}>
-  <Card
-    title="Prefixo"
-    icon="tag"
-  >
-    **cvn**
-    
-    Identifica que é uma chave do ConnectVets Notes
-  </Card>
-  
-  <Card
-    title="Ambiente"
-    icon="server"
-  >
-    **live** ou **test**
-    
-    Indica se é produção ou desenvolvimento
-  </Card>
-  
-  <Card
-    title="Token"
-    icon="key"
-  >
-    **32 caracteres**
-    
-    Identificador único criptografado
-  </Card>
-</CardGroup>
-
-### Fluxo de Autenticação
-
-```mermaid
-sequenceDiagram
-    participant App as Sua Aplicação
-    participant API as ConnectVets API
-    participant Auth as Sistema de Auth
-    participant DB as Banco de Dados
-    
-    App->>API: Requisição com X-API-KEY
-    API->>Auth: Validar chave
-    Auth->>DB: Verificar chave ativa
-    DB-->>Auth: Dados da clínica
-    Auth-->>API: Autorização confirmada
-    API-->>App: Resposta com dados
-```
+<Steps>
+  <Step title="Solicitação">
+    Contate nossa equipe via [WhatsApp (+55 31 8883-5141)](https://wa.me/5531888835141) para solicitar acesso
+  </Step>
+  <Step title="Configuração">
+    Nossa equipe criará suas credenciais com limites adequados ao seu uso
+  </Step>
+  <Step title="Entrega">
+    Você receberá sua API Key e instruções de uso por canal seguro
+  </Step>
+  <Step title="Integração">
+    Use a chave no header `X-API-KEY` em todas as requisições
+  </Step>
+</Steps>
 
 ## Tipos de API Keys
 
-### Por Ambiente
+### Produção
+- **Ambiente**: `https://api.connectvets.com.br/v1`
+- **Uso**: Aplicações em produção
+- **Rate Limiting**: Conforme plano contratado
+- **Suporte**: Prioritário
 
-<CardGroup cols={2}>
-  <Card
-    title="Produção (Live)"
-    icon="globe"
-  >
-    **Prefixo**: `cvn_live_`
-    
-    - Usada em produção
-    - Dados reais de clínicas
-    - Rate limits padrão
-    - Monitoramento ativo
-  </Card>
-  
-  <Card
-    title="Teste (Test)"
-    icon="flask"
-  >
-    **Prefixo**: `cvn_test_`
-    
-    - Ambiente de desenvolvimento
-    - Dados fictícios
-    - Rate limits relaxados
-    - Ideal para testes
-  </Card>
-</CardGroup>
+### Teste/Desenvolvimento  
+- **Ambiente**: `https://api-dev.connectvets.com.br/v1`
+- **Uso**: Desenvolvimento e testes
+- **Rate Limiting**: Limitado para testes
+- **Suporte**: Via Discord
 
-### Por Permissões
+## Configuração
 
-| Tipo | Descrição | Permissões |
-|------|-----------|------------|
-| **Admin** | Acesso completo | Criar, ler, atualizar, deletar tudo |
-| **Write** | Leitura e escrita | Criar e ler notas, gerenciar webhooks |
-| **Read** | Apenas leitura | Listar e visualizar notas existentes |
+### Headers Obrigatórios
 
-## Gerenciamento de API Keys
-
-### Criação
-
-1. **Acesse o painel**: `https://notes.connectvets.com.br`
-2. **Vá para Configurações** → **API Keys**
-3. **Clique em "Nova API Key"**
-4. **Escolha o tipo** e **nomeie** a chave
-5. **Copie a chave** (exibida apenas uma vez!)
-
-<Warning>
-  **Importante**: A chave é exibida **apenas uma vez** após a criação. Se perder, será necessário criar uma nova.
-</Warning>
-
-### Exemplo de Criação
-
-```bash
-# Exemplo de resposta ao criar uma API Key
-{
-  "id": "key_123456789",
-  "name": "Integração DoctorVet",
-  "key_prefix": "cvn_live_abc123",
-  "type": "write",
-  "rate_limit_per_minute": 100,
-  "rate_limit_per_hour": 1000,
-  "is_active": true,
-  "created_at": "2024-02-14T18:25:43Z"
-}
+```http
+X-API-KEY: sua_api_key_aqui
+Content-Type: application/json
 ```
 
-### Rotação de Chaves
-
-<AccordionGroup>
-  <Accordion title="Quando fazer rotação?">
-    - **Periodicidade**: A cada 6-12 meses
-    - **Comprometimento**: Se suspeitar que foi exposta
-    - **Mudança de equipe**: Quando desenvolvedores saem
-    - **Auditoria**: Como boa prática de segurança
-  </Accordion>
-  
-  <Accordion title="Como fazer rotação?">
-    1. **Crie uma nova** API Key
-    2. **Atualize seus sistemas** com a nova chave
-    3. **Teste o funcionamento** em staging
-    4. **Deploy em produção**
-    5. **Revogue a chave antiga** após confirmação
-  </Accordion>
-  
-  <Accordion title="Rotação sem downtime">
-    ```bash
-    # 1. Criar nova chave
-    # 2. Implementar fallback
-    const API_KEYS = [
-      process.env.NEW_API_KEY,    // Nova chave (prioritária)
-      process.env.OLD_API_KEY     // Chave antiga (backup)
-    ];
-    
-    // 3. Após validação, remover chave antiga
-    ```
-  </Accordion>
-</AccordionGroup>
-
-## Segurança
-
-### ✅ Boas Práticas
-
-- **Nunca compartilhe** em código público (GitHub, Slack, etc.)
-- **Use variáveis de ambiente** para armazenar
-- **Implemente fallback** durante rotação
-- **Monitore uso** regularmente
-- **Revogue imediatamente** se comprometida
-
-### ❌ Práticas Perigosas
-
-- Hardcoded no código
-- Enviada por email ou chat
-- Compartilhada em screenshots
-- Commitada no Git
-- Logada em arquivos de debug
-
-### Exemplo de Armazenamento Seguro
-
-```bash
-# .env (NUNCA commitar este arquivo)
-CONNECTVETS_API_KEY=cvn_live_abc123def456...
-CONNECTVETS_ENVIRONMENT=production
-
-# .env.example (pode commitar)
-CONNECTVETS_API_KEY=your_api_key_here
-CONNECTVETS_ENVIRONMENT=development
-```
+### Exemplo de Uso
 
 ```javascript
-// Uso correto em código
 const apiKey = process.env.CONNECTVETS_API_KEY;
 
-if (!apiKey) {
-  throw new Error('API Key não configurada');
-}
-
-const response = await fetch('/api/notes', {
+const response = await fetch('https://api.connectvets.com.br/v1/notes', {
+  method: 'GET',
   headers: {
-    'X-API-KEY': apiKey
+    'X-API-KEY': apiKey,
+    'Content-Type': 'application/json'
   }
 });
 ```
 
-## Rate Limiting
+## Limites e Cotas
 
-As API Keys têm limites de uso para garantir estabilidade:
+Cada API Key possui limites baseados no plano:
 
-### Limites Padrão
+### Por Minuto
+- **Starter**: 10 requisições/min
+- **Professional**: 100 requisições/min  
+- **Enterprise**: 1000 requisições/min
+- **Custom**: Conforme necessidade
 
-| Tipo de Chave | Requisições/Minuto | Requisições/Hora | Upload/Minuto |
-|---------------|-------------------|-----------------|---------------|
-| **Admin** | 200 | 2.000 | 10 arquivos |
-| **Write** | 100 | 1.000 | 10 arquivos |
-| **Read** | 150 | 1.500 | - |
+### Por Hora
+- **Starter**: 100 requisições/hora
+- **Professional**: 1000 requisições/hora
+- **Enterprise**: 10000 requisições/hora
+- **Custom**: Conforme necessidade
 
-### Headers de Rate Limit
+### Processamento de Áudio
+- **Starter**: 10 horas/mês
+- **Professional**: 100 horas/mês
+- **Enterprise**: 1000 horas/mês
+- **Custom**: Ilimitado
+
+## Monitoramento
+
+### Headers de Resposta
+
+A API retorna informações sobre uso nos headers:
 
 ```http
-HTTP/1.1 200 OK
 X-RateLimit-Limit-Minute: 100
 X-RateLimit-Remaining-Minute: 87
 X-RateLimit-Reset-Minute: 1642694400
 X-RateLimit-Limit-Hour: 1000
-X-RateLimit-Remaining-Hour: 892
+X-RateLimit-Remaining-Hour: 756
 ```
 
-### Tratamento de Rate Limit
+### Dashboard (Em Breve)
 
-```javascript
-async function makeAPIRequest(url, options) {
-  const response = await fetch(url, options);
-  
-  if (response.status === 429) {
-    const resetTime = response.headers.get('X-RateLimit-Reset-Minute');
-    const waitTime = (resetTime * 1000) - Date.now();
-    
-    console.log(`Rate limit atingido. Aguardando ${waitTime}ms`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-    
-    // Tentar novamente
-    return makeAPIRequest(url, options);
-  }
-  
-  return response;
-}
-```
+Estamos desenvolvendo um dashboard para acompanhamento em tempo real:
 
-## Monitoramento
+- Uso de cotas em tempo real
+- Histórico de requisições
+- Alertas de limite
+- Estatísticas de performance
 
-### Métricas Importantes
+## Segurança
 
-<CardGroup cols={2}>
-  <Card
-    title="Uso da API"
-    icon="chart-line"
-  >
-    - Requisições por hora/dia
-    - Rate limits atingidos
-    - Padrões de uso
-    - Picos de tráfego
-  </Card>
-  
-  <Card
-    title="Segurança"
-    icon="shield"
-  >
-    - Tentativas de acesso negado
-    - IPs suspeitos
-    - Padrões anômalos
-    - Última utilização
-  </Card>
-</CardGroup>
+<Warning>
+  **Nunca exponha sua API Key** em código público, logs ou URLs. Use variáveis de ambiente.
+</Warning>
 
-### Dashboard de Monitoramento
+### Boas Práticas
 
-```javascript
-// Exemplo de métricas no painel
-{
-  "api_key_id": "key_123456789",
-  "last_used_at": "2024-02-14T18:25:43Z",
-  "total_requests_today": 1247,
-  "rate_limit_hits": 3,
-  "unique_ips": 2,
-  "most_used_endpoints": [
-    "/notes",
-    "/notes/{id}",
-    "/webhooks"
-  ]
-}
-```
+1. **Variáveis de Ambiente**
+   ```bash
+   export CONNECTVETS_API_KEY="sua_api_key_aqui"
+   ```
 
-## Múltiplas Clínicas
+2. **Rotação Regular**
+   - Contate nossa equipe para rotacionar chaves periodicamente
+   - Especialmente importante após vazamentos ou mudanças de equipe
 
-### Estratégias de Gerenciamento
+3. **Monitoramento**
+   - Acompanhe logs de acesso e uso
+   - Configure alertas para uso anômalo
 
-<AccordionGroup>
-  <Accordion title="Uma API Key por Clínica">
-    **Recomendado** para a maioria dos casos
-    
-    ```javascript
-    const clinicAPIKeys = {
-      'clinica_centro': 'cvn_live_abc123...',
-      'clinica_zona_sul': 'cvn_live_def456...',
-      'clinica_matriz': 'cvn_live_ghi789...'
-    };
-    
-    function getAPIKey(clinicId) {
-      return clinicAPIKeys[clinicId];
-    }
-    ```
-  </Accordion>
-  
-  <Accordion title="API Key Master + Tenant Header">
-    Para grandes volumes com muitas clínicas
-    
-    ```javascript
-    // Usando header adicional (futuro)
-    const response = await fetch('/api/notes', {
-      headers: {
-        'X-API-KEY': masterApiKey,
-        'X-Tenant-ID': clinicId
-      }
-    });
-    ```
-  </Accordion>
-</AccordionGroup>
-
-### Mapeamento de Clínicas
-
-```javascript
-// Configuração centralizada
-const clinicsConfig = {
-  'clinica_001': {
-    name: 'Clínica Centro Veterinário',
-    apiKey: process.env.CLINIC_001_API_KEY,
-    webhookUrl: 'https://clinic001.com/webhook',
-    settings: { autoNotify: true }
-  },
-  'clinica_002': {
-    name: 'PetCare Zona Sul', 
-    apiKey: process.env.CLINIC_002_API_KEY,
-    webhookUrl: 'https://petcare.com/notifications',
-    settings: { autoNotify: false }
-  }
-};
-```
+4. **Segregação**
+   - Use chaves diferentes para desenvolvimento e produção
+   - Limite permissões por ambiente
 
 ## Troubleshooting
 
-### Erros Comuns
+### Erro 401: Unauthorized
 
-<AccordionGroup>
-  <Accordion title="401 - Unauthorized">
-    **Causas possíveis:**
-    - API Key inválida ou inexistente
-    - Chave desativada
-    - Header mal formatado
-    
-    **Soluções:**
-    ```javascript
-    // Verificar header
-    headers: {
-      'X-API-KEY': 'cvn_live_abc123...' // Sem espaços extras
-    }
-    
-    // Verificar se chave está ativa no painel
-    ```
-  </Accordion>
-  
-  <Accordion title="403 - Forbidden">
-    **Causas possíveis:**
-    - Chave sem permissão para a operação
-    - Tentativa de acesso a dados de outra clínica
-    
-    **Soluções:**
-    - Verificar tipo da chave (read/write/admin)
-    - Confirmar que está acessando dados corretos
-  </Accordion>
-  
-  <Accordion title="429 - Rate Limit">
-    **Causas possíveis:**
-    - Muitas requisições em pouco tempo
-    - Uploads em massa
-    
-    **Soluções:**
-    - Implementar backoff exponencial
-    - Distribuir requisições ao longo do tempo
-    - Considerar upgrade do plano
-  </Accordion>
-</AccordionGroup>
-
-## Migração e Backup
-
-### Backup de Configurações
-
-```bash
-# Script para backup de configurações
-#!/bin/bash
-
-echo "Backup das API Keys ativas..."
-
-curl -H "X-API-KEY: $ADMIN_KEY" \
-  https://api.connectvets.com/admin/api-keys \
-  | jq '.[] | {id, name, type, created_at}' \
-  > api_keys_backup_$(date +%Y%m%d).json
-
-echo "Backup concluído!"
-```
-
-### Auditoria
-
-```javascript
-// Relatório de uso das API Keys
-async function generateAPIKeyReport() {
-  const keys = await getActiveAPIKeys();
-  
-  const report = await Promise.all(
-    keys.map(async (key) => {
-      const stats = await getKeyStats(key.id);
-      return {
-        name: key.name,
-        type: key.type,
-        lastUsed: stats.last_used_at,
-        requestsToday: stats.requests_today,
-        status: stats.last_used_at > oneWeekAgo ? 'active' : 'inactive'
-      };
-    })
-  );
-  
-  return report;
+```json
+{
+  "error": "unauthorized",
+  "message": "Invalid or missing API key"
 }
 ```
 
-## Próximos Passos
+**Soluções:**
+- Verifique se o header `X-API-KEY` está presente
+- Confirme que a chave está correta
+- Verifique se a chave não expirou
 
-<CardGroup cols={2}>
-  <Card
-    title="Autenticação"
-    icon="key"
-    href="/authentication"
-  >
-    Guia prático de como usar API Keys
-  </Card>
-  <Card
-    title="Início Rápido"
-    icon="rocket"
-    href="/quickstart"
-  >
-    Configure sua primeira API Key
-  </Card>
-  <Card
-    title="Gerenciar Chaves"
-    icon="settings"
-    href="/api-reference/api-keys/list"
-  >
-    Endpoints para gerenciar API Keys
-  </Card>
-  <Card
-    title="Conceitos - Tenants"
-    icon="building"
-    href="/concepts/tenants"
-  >
-    Entenda o sistema multi-clínica
-  </Card>
-</CardGroup> 
+### Erro 403: Forbidden
+
+```json
+{
+  "error": "forbidden", 
+  "message": "Insufficient permissions for this endpoint"
+}
+```
+
+**Soluções:**
+- Verifique se sua chave tem permissões para o endpoint
+- Contate nossa equipe para upgrade de plano
+
+### Erro 429: Rate Limit
+
+```json
+{
+  "error": "too_many_requests",
+  "message": "Rate limit exceeded",
+  "retry_after": 60
+}
+```
+
+**Soluções:**
+- Implemente retry com backoff exponencial
+- Considere upgrade para plano com limite maior
+- Otimize frequência de requisições
+
+## Gerenciamento
+
+<Info>
+  **Importante**: API Keys não são gerenciadas via API. Todas as operações são feitas através de contato direto com nossa equipe.
+</Info>
+
+### Para Solicitar Nova Chave
+
+1. **Contate via WhatsApp**: [+55 31 8883-5141](https://wa.me/5531888835141)
+2. **Informe**:
+   - Nome da empresa/projeto
+   - Casos de uso esperados
+   - Volume estimado de requisições
+   - Ambiente (produção/desenvolvimento)
+
+### Para Modificar Limites
+
+Entre em contato informando:
+- Justificativa para aumento
+- Métricas de uso atual
+- Projeções de crescimento
+
+### Para Renovar ou Revogar
+
+Nossa equipe pode ajudar com:
+- Renovação de chaves expiradas
+- Revogação por segurança
+- Migração entre ambientes
+
+---
+
+<Info>
+**Próximo passo**: Explore os [endpoints de Notes](/api-reference/notes/create) ou veja [exemplos de autenticação](/examples/basic-integration).
+</Info> 
