@@ -1,722 +1,502 @@
 ---
-title: 'Filtros Avançados'
-description: 'Implementar busca inteligente e filtros avançados para gerenciar notas do ConnectVets'
+title: 'Filtros e Busca'
+description: 'Como usar filtros para buscar notas específicas na API'
 ---
 
-## Visão Geral
+# Filtros e Busca de Notas
 
-Este exemplo demonstra como implementar **filtros avançados** e **busca inteligente** para gerenciar grandes volumes de notas veterinárias. Inclui filtros por data, espécie, veterinário, tipo de consulta e busca textual.
+Este exemplo mostra como usar os filtros disponíveis na API para buscar notas específicas.
 
-<Info>
-  **Resultado**: Sistema completo de busca e filtros para encontrar rapidamente consultas específicas.
-</Info>
+## Filtros Básicos
 
-## Interface de Filtros
+### Buscar por Status
 
-### HTML da Interface
+```bash
+# Buscar apenas notas processadas
+curl -X GET "https://api.connectvets.com.br/v1/notes?transcription_status=completed" \
+  -H "X-API-KEY: sua_api_key_aqui"
 
-```html
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ConnectVets - Filtros Avançados</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🔍 Busca Avançada de Consultas</h1>
-        </header>
-
-        <!-- Seção de Filtros -->
-        <section class="filters-section">
-            <h2>Filtros</h2>
-            
-            <!-- Busca Textual -->
-            <div class="search-box">
-                <input type="text" id="searchText" placeholder="🔍 Buscar por paciente, diagnóstico, tratamento...">
-                <button id="clearSearch">✕</button>
-            </div>
-
-            <!-- Filtros Rápidos -->
-            <div class="quick-filters">
-                <button class="filter-btn active" data-period="all">Todas</button>
-                <button class="filter-btn" data-period="today">Hoje</button>
-                <button class="filter-btn" data-period="week">Esta Semana</button>
-                <button class="filter-btn" data-period="month">Este Mês</button>
-            </div>
-
-            <!-- Filtros Detalhados -->
-            <div class="detailed-filters">
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label>📅 Período</label>
-                        <input type="date" id="dateFrom">
-                        <span>até</span>
-                        <input type="date" id="dateTo">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>🐕 Espécie</label>
-                        <select id="speciesFilter" multiple>
-                            <option value="Canino">Canino</option>
-                            <option value="Felino">Felino</option>
-                            <option value="Ave">Ave</option>
-                            <option value="Equino">Equino</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label>👨‍⚕️ Veterinário</label>
-                        <select id="doctorFilter">
-                            <option value="">Todos</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>🏥 Tipo de Consulta</label>
-                        <select id="consultationTypeFilter">
-                            <option value="">Todos</option>
-                            <option value="consulta">Consulta</option>
-                            <option value="cirurgia">Cirurgia</option>
-                            <option value="retorno">Retorno</option>
-                            <option value="emergencia">Emergência</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label>📊 Status</label>
-                        <select id="statusFilter">
-                            <option value="">Todos</option>
-                            <option value="completed">Processado</option>
-                            <option value="processing">Processando</option>
-                            <option value="failed">Erro</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>📋 Ordenar por</label>
-                        <select id="sortBy">
-                            <option value="created_at_desc">Data ↓</option>
-                            <option value="created_at_asc">Data ↑</option>
-                            <option value="patient_name_asc">Paciente A-Z</option>
-                            <option value="doctor_name_asc">Veterinário A-Z</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="filter-actions">
-                <button id="applyFilters" class="btn-primary">🔍 Aplicar Filtros</button>
-                <button id="clearFilters" class="btn-secondary">🗑️ Limpar</button>
-                <button id="exportResults" class="btn-export">📊 Exportar</button>
-            </div>
-        </section>
-
-        <!-- Resultados -->
-        <section class="results-section">
-            <div class="results-header">
-                <h2>Resultados</h2>
-                <div class="results-stats" id="resultsStats">
-                    Carregando...
-                </div>
-            </div>
-
-            <div class="results-container" id="resultsContainer">
-                <!-- Resultados serão inseridos aqui -->
-            </div>
-
-            <!-- Paginação -->
-            <div class="pagination" id="pagination">
-                <!-- Controles de paginação -->
-            </div>
-        </section>
-    </div>
-
-    <script src="config.js"></script>
-    <script src="filters.js"></script>
-</body>
-</html>
+# Buscar notas com erro
+curl -X GET "https://api.connectvets.com.br/v1/notes?transcription_status=failed" \
+  -H "X-API-KEY: sua_api_key_aqui"
 ```
 
-## Implementação dos Filtros
+### Filtrar por Data
 
-### Cliente com Filtros Avançados
+```bash
+# Notas de um período específico
+curl -X GET "https://api.connectvets.com.br/v1/notes?from=2024-01-01&to=2024-01-31" \
+  -H "X-API-KEY: sua_api_key_aqui"
+
+# Notas dos últimos 7 dias
+curl -X GET "https://api.connectvets.com.br/v1/notes?days=7" \
+  -H "X-API-KEY: sua_api_key_aqui"
+```
+
+### Buscar por Nome do Paciente
+
+```bash
+# Buscar paciente específico
+curl -X GET "https://api.connectvets.com.br/v1/notes?name=Rex" \
+  -H "X-API-KEY: sua_api_key_aqui"
+```
+
+## Implementações por Linguagem
+
+### JavaScript/Node.js
 
 ```javascript
-class AdvancedNotesClient {
-    constructor(config) {
-        this.config = config;
-        this.cache = new Map();
-        this.currentFilters = {};
-        this.currentPage = 1;
-        this.pageSize = 20;
-    }
+class NotesFilter {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+    this.baseUrl = 'https://api.connectvets.com.br/v1';
+  }
 
-    // Buscar notas com filtros
-    async searchNotes(filters = {}, page = 1, pageSize = 20) {
-        const params = this.buildQueryParams(filters, page, pageSize);
-        const cacheKey = params.toString();
-        
-        // Verificar cache
-        if (this.cache.has(cacheKey)) {
-            console.log('📋 Resultado do cache');
-            return this.cache.get(cacheKey);
-        }
+  async searchNotes(filters = {}) {
+    const params = new URLSearchParams();
+    
+    // Adicionar filtros à query
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        params.append(key, value);
+      }
+    });
 
-        try {
-            const response = await this.request(`/notes?${params}`);
-            
-            // Adicionar ao cache (manter apenas 50 consultas)
-            if (this.cache.size >= 50) {
-                const firstKey = this.cache.keys().next().value;
-                this.cache.delete(firstKey);
-            }
-            this.cache.set(cacheKey, response);
-            
-            return response;
-        } catch (error) {
-            console.error('❌ Erro na busca:', error);
-            throw error;
-        }
-    }
+    const response = await fetch(`${this.baseUrl}/notes?${params}`, {
+      headers: {
+        'X-API-KEY': this.apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
 
-    // Construir parâmetros de query
-    buildQueryParams(filters, page, pageSize) {
-        const params = new URLSearchParams();
-        
-        // Paginação
-        params.set('page', page);
-        params.set('limit', pageSize);
-        
-        // Busca textual
-        if (filters.search) {
-            params.set('search', filters.search);
-        }
-        
-        // Filtros de data
-        if (filters.dateFrom) {
-            params.set('created_after', filters.dateFrom);
-        }
-        if (filters.dateTo) {
-            params.set('created_before', filters.dateTo);
-        }
-        
-        // Filtros categóricos
-        if (filters.species && filters.species.length > 0) {
-            params.set('species', filters.species.join(','));
-        }
-        if (filters.doctor) {
-            params.set('doctor_name', filters.doctor);
-        }
-        if (filters.consultationType) {
-            params.set('consultation_type', filters.consultationType);
-        }
-        if (filters.status) {
-            params.set('status', filters.status);
-        }
-        
-        // Ordenação
-        if (filters.sortBy) {
-            const [field, direction] = filters.sortBy.split('_');
-            params.set('sort_by', field);
-            params.set('sort_direction', direction === 'desc' ? 'desc' : 'asc');
-        }
-        
-        return params;
-    }
+    return await response.json();
+  }
 
-    // Obter estatísticas dos filtros
-    async getFilterStats(filters = {}) {
-        const params = this.buildQueryParams(filters, 1, 1);
-        params.set('include_stats', 'true');
-        
-        try {
-            const response = await this.request(`/notes/stats?${params}`);
-            return response.stats;
-        } catch (error) {
-            console.error('❌ Erro ao obter estatísticas:', error);
-            return null;
-        }
-    }
+  // Filtros específicos
+  async getCompletedNotes(page = 1, limit = 10) {
+    return this.searchNotes({
+      transcription_status: 'completed',
+      page,
+      limit
+    });
+  }
 
-    // Obter listas para filtros (veterinários únicos, etc.)
-    async getFilterOptions() {
-        try {
-            const response = await this.request('/notes/filter-options');
-            return response;
-        } catch (error) {
-            console.error('❌ Erro ao obter opções:', error);
-            return {};
-        }
-    }
+  async getNotesByDateRange(from, to) {
+    return this.searchNotes({
+      from: from, // YYYY-MM-DD
+      to: to,     // YYYY-MM-DD
+      transcription_status: 'completed'
+    });
+  }
 
-    // Exportar resultados
-    async exportResults(filters = {}, format = 'csv') {
-        const params = this.buildQueryParams(filters, 1, 10000);
-        params.set('export', format);
-        
-        try {
-            const response = await fetch(`${this.config.baseUrl}/notes/export?${params}`, {
-                headers: {
-                    'X-API-KEY': this.config.apiKey
-                }
-            });
-            
-            if (response.ok) {
-                const blob = await response.blob();
-                this.downloadBlob(blob, `notes_export_${Date.now()}.${format}`);
-            }
-        } catch (error) {
-            console.error('❌ Erro na exportação:', error);
-        }
-    }
+  async getPatientNotes(patientName) {
+    return this.searchNotes({
+      name: patientName,
+      transcription_status: 'completed'
+    });
+  }
 
-    // Fazer requisição base
-    async request(endpoint) {
-        const response = await fetch(`${this.config.baseUrl}${endpoint}`, {
-            headers: {
-                'X-API-KEY': this.config.apiKey,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Erro ${response.status}: ${response.statusText}`);
-        }
-        
-        return response.json();
-    }
+  async getRecentNotes(days = 7) {
+    const to = new Date().toISOString().split('T')[0];
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0];
 
-    // Download de arquivo
-    downloadBlob(blob, filename) {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    }
+    return this.getNotesByDateRange(from, to);
+  }
 }
+
+// Exemplos de uso
+async function examples() {
+  const filter = new NotesFilter(process.env.CONNECTVETS_API_KEY);
+
+  try {
+    // Buscar notas processadas hoje
+    const today = new Date().toISOString().split('T')[0];
+    const todayNotes = await filter.getNotesByDateRange(today, today);
+    console.log('Notas de hoje:', todayNotes.data.length);
+
+    // Buscar notas de um paciente específico
+    const rexNotes = await filter.getPatientNotes('Rex');
+    console.log('Notas do Rex:', rexNotes.data.length);
+
+    // Buscar notas dos últimos 30 dias
+    const recentNotes = await filter.getRecentNotes(30);
+    console.log('Notas recentes:', recentNotes.data.length);
+
+    // Busca personalizada
+    const customSearch = await filter.searchNotes({
+      transcription_status: 'completed',
+      from: '2024-01-01',
+      limit: 50
+    });
+    console.log('Busca personalizada:', customSearch.data.length);
+
+  } catch (error) {
+    console.error('Erro na busca:', error);
+  }
+}
+
+examples();
 ```
 
-### Controlador da Interface
+### Python
 
-```javascript
-class FiltersApp {
-    constructor() {
-        this.client = new AdvancedNotesClient(window.ConnectVetsConfig);
-        this.currentFilters = {};
-        this.currentPage = 1;
-        this.debounceTimer = null;
+```python
+import requests
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
+class NotesFilter:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://api.connectvets.com.br/v1"
+        self.session = requests.Session()
+        self.session.headers.update({"X-API-KEY": api_key})
+    
+    def search_notes(self, filters: Dict = None) -> Dict:
+        """Buscar notas com filtros"""
+        params = {}
         
-        this.initializeUI();
-        this.loadInitialData();
+        if filters:
+            # Remover valores vazios
+            params = {k: v for k, v in filters.items() 
+                     if v is not None and v != ''}
+        
+        response = self.session.get(f"{self.base_url}/notes", params=params)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_completed_notes(self, page: int = 1, limit: int = 10) -> Dict:
+        """Buscar apenas notas processadas"""
+        return self.search_notes({
+            'transcription_status': 'completed',
+            'page': page,
+            'limit': limit
+        })
+    
+    def get_notes_by_date_range(self, from_date: str, to_date: str) -> Dict:
+        """Buscar notas por período (YYYY-MM-DD)"""
+        return self.search_notes({
+            'from': from_date,
+            'to': to_date,
+            'transcription_status': 'completed'
+        })
+    
+    def get_patient_notes(self, patient_name: str) -> Dict:
+        """Buscar notas de um paciente específico"""
+        return self.search_notes({
+            'name': patient_name,
+            'transcription_status': 'completed'
+        })
+    
+    def get_recent_notes(self, days: int = 7) -> Dict:
+        """Buscar notas dos últimos X dias"""
+        to_date = datetime.now().strftime('%Y-%m-%d')
+        from_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        
+        return self.get_notes_by_date_range(from_date, to_date)
+
+# Exemplos de uso
+def main():
+    filter_client = NotesFilter(os.getenv('CONNECTVETS_API_KEY'))
+    
+    try:
+        # Buscar notas de hoje
+        today = datetime.now().strftime('%Y-%m-%d')
+        today_notes = filter_client.get_notes_by_date_range(today, today)
+        print(f"Notas de hoje: {len(today_notes['data'])}")
+        
+        # Buscar notas de um paciente
+        rex_notes = filter_client.get_patient_notes('Rex')
+        print(f"Notas do Rex: {len(rex_notes['data'])}")
+        
+        # Buscar notas dos últimos 30 dias
+        recent_notes = filter_client.get_recent_notes(30)
+        print(f"Notas recentes: {len(recent_notes['data'])}")
+        
+        # Busca personalizada
+        custom_search = filter_client.search_notes({
+            'transcription_status': 'completed',
+            'from': '2024-01-01',
+            'limit': 50
+        })
+        print(f"Busca personalizada: {len(custom_search['data'])}")
+        
+    except Exception as e:
+        print(f"Erro: {e}")
+
+if __name__ == "__main__":
+    main()
+```
+
+### PHP
+
+```php
+<?php
+
+class NotesFilter {
+    private $apiKey;
+    private $baseUrl = 'https://api.connectvets.com.br/v1';
+    
+    public function __construct($apiKey) {
+        $this->apiKey = $apiKey;
     }
-
-    async initializeUI() {
-        // Event listeners para busca
-        document.getElementById('searchText').addEventListener('input', (e) => {
-            this.debounceSearch(e.target.value);
-        });
-        
-        document.getElementById('clearSearch').addEventListener('click', () => {
-            document.getElementById('searchText').value = '';
-            this.applyFilters();
-        });
-
-        // Filtros rápidos
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.handleQuickFilter(e.target.dataset.period);
-            });
-        });
-
-        // Filtros detalhados
-        const filterInputs = [
-            'dateFrom', 'dateTo', 'speciesFilter', 'doctorFilter', 
-            'consultationTypeFilter', 'statusFilter', 'sortBy'
-        ];
-        
-        filterInputs.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.addEventListener('change', () => this.applyFilters());
-            }
-        });
-
-        // Ações
-        document.getElementById('applyFilters').addEventListener('click', () => this.applyFilters());
-        document.getElementById('clearFilters').addEventListener('click', () => this.clearFilters());
-        document.getElementById('exportResults').addEventListener('click', () => this.exportResults());
-    }
-
-    async loadInitialData() {
-        try {
-            // Carregar opções para filtros
-            const options = await this.client.getFilterOptions();
-            this.populateFilterOptions(options);
-            
-            // Busca inicial
-            this.applyFilters();
-        } catch (error) {
-            console.error('❌ Erro ao carregar dados iniciais:', error);
-        }
-    }
-
-    // Preencher opções dos filtros
-    populateFilterOptions(options) {
-        // Veterinários
-        const doctorSelect = document.getElementById('doctorFilter');
-        if (options.doctors) {
-            options.doctors.forEach(doctor => {
-                const option = document.createElement('option');
-                option.value = doctor;
-                option.textContent = doctor;
-                doctorSelect.appendChild(option);
-            });
-        }
-    }
-
-    // Busca com debounce
-    debounceSearch(searchText) {
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => {
-            this.currentFilters.search = searchText;
-            this.applyFilters();
-        }, 500);
-    }
-
-    // Filtros rápidos
-    handleQuickFilter(period) {
-        // Remover classe active de todos
-        document.querySelectorAll('.filter-btn').forEach(btn => 
-            btn.classList.remove('active'));
-        
-        // Adicionar classe active ao clicado
-        document.querySelector(`[data-period="${period}"]`).classList.add('active');
-        
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        switch (period) {
-            case 'today':
-                this.currentFilters.dateFrom = today.toISOString().split('T')[0];
-                this.currentFilters.dateTo = today.toISOString().split('T')[0];
-                break;
-            case 'week':
-                const weekStart = new Date(today);
-                weekStart.setDate(today.getDate() - today.getDay());
-                this.currentFilters.dateFrom = weekStart.toISOString().split('T')[0];
-                this.currentFilters.dateTo = today.toISOString().split('T')[0];
-                break;
-            case 'month':
-                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-                this.currentFilters.dateFrom = monthStart.toISOString().split('T')[0];
-                this.currentFilters.dateTo = today.toISOString().split('T')[0];
-                break;
-            default:
-                delete this.currentFilters.dateFrom;
-                delete this.currentFilters.dateTo;
-        }
-        
-        this.updateFilterInputs();
-        this.applyFilters();
-    }
-
-    // Aplicar filtros
-    async applyFilters() {
-        this.currentPage = 1;
-        this.collectFilters();
-        
-        try {
-            document.getElementById('resultsStats').textContent = 'Buscando...';
-            
-            const results = await this.client.searchNotes(
-                this.currentFilters, 
-                this.currentPage, 
-                20
-            );
-            
-            this.displayResults(results);
-            this.updateStats(results);
-            this.updatePagination(results);
-            
-        } catch (error) {
-            console.error('❌ Erro na busca:', error);
-            this.displayError(error);
-        }
-    }
-
-    // Coletar valores dos filtros
-    collectFilters() {
-        this.currentFilters = {
-            search: document.getElementById('searchText').value,
-            dateFrom: document.getElementById('dateFrom').value,
-            dateTo: document.getElementById('dateTo').value,
-            species: Array.from(document.getElementById('speciesFilter').selectedOptions)
-                .map(option => option.value),
-            doctor: document.getElementById('doctorFilter').value,
-            consultationType: document.getElementById('consultationTypeFilter').value,
-            status: document.getElementById('statusFilter').value,
-            sortBy: document.getElementById('sortBy').value
-        };
-        
+    
+    public function searchNotes($filters = []) {
         // Remover valores vazios
-        Object.keys(this.currentFilters).forEach(key => {
-            if (!this.currentFilters[key] || 
-                (Array.isArray(this.currentFilters[key]) && this.currentFilters[key].length === 0)) {
-                delete this.currentFilters[key];
-            }
+        $params = array_filter($filters, function($value) {
+            return $value !== null && $value !== '';
         });
-    }
-
-    // Exibir resultados
-    displayResults(results) {
-        const container = document.getElementById('resultsContainer');
         
-        if (!results.data || results.data.length === 0) {
-            container.innerHTML = `
-                <div class="no-results">
-                    <h3>🔍 Nenhuma consulta encontrada</h3>
-                    <p>Tente ajustar os filtros ou realizar uma nova busca.</p>
-                </div>
-            `;
-            return;
+        $url = $this->baseUrl . '/notes';
+        if (!empty($params)) {
+            $url .= '?' . http_build_query($params);
         }
-
-        const html = results.data.map(note => this.renderNoteCard(note)).join('');
-        container.innerHTML = html;
-    }
-
-    // Renderizar card da nota
-    renderNoteCard(note) {
-        const statusIcons = {
-            'completed': '✅',
-            'processing': '🔄',
-            'failed': '❌'
-        };
         
-        const statusIcon = statusIcons[note.status] || '⏳';
-        const createdDate = new Date(note.created_at).toLocaleString('pt-BR');
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'X-API-KEY: ' . $this->apiKey,
+                'Content-Type: application/json'
+            ]
+        ]);
         
-        return `
-            <div class="note-card" onclick="window.open('/notes/${note.id}', '_blank')">
-                <div class="note-header">
-                    <h3>🐕 ${note.metadata?.patient_name || 'Paciente'}</h3>
-                    <span class="note-status">${statusIcon} ${note.status}</span>
-                </div>
-                
-                <div class="note-info">
-                    <p><strong>👨‍⚕️ Veterinário:</strong> ${note.metadata?.doctor_name || '-'}</p>
-                    <p><strong>🐕 Espécie:</strong> ${note.metadata?.species || '-'}</p>
-                    <p><strong>🏥 Tipo:</strong> ${note.metadata?.consultation_type || '-'}</p>
-                    <p><strong>📅 Data:</strong> ${createdDate}</p>
-                </div>
-                
-                ${note.sections && note.sections.length > 0 ? `
-                    <div class="note-preview">
-                        <p><strong>📋 Resumo:</strong> ${this.truncateText(
-                            note.sections.find(s => s.type === 'summary')?.content || 
-                            note.sections[0]?.content || '', 100
-                        )}</p>
-                    </div>
-                ` : ''}
-                
-                <div class="note-actions">
-                    <button onclick="event.stopPropagation(); window.viewNote('${note.id}')" 
-                            class="btn-view">👁️ Ver</button>
-                    <button onclick="event.stopPropagation(); window.downloadNote('${note.id}')" 
-                            class="btn-download">📥 Download</button>
-                </div>
-            </div>
-        `;
-    }
-
-    // Atualizar estatísticas
-    updateStats(results) {
-        const stats = document.getElementById('resultsStats');
-        const total = results.pagination?.total || results.data.length;
-        const showing = results.data.length;
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
         
-        stats.innerHTML = `
-            Mostrando <strong>${showing}</strong> de <strong>${total}</strong> consultas
-            ${this.currentFilters.search ? `para "${this.currentFilters.search}"` : ''}
-        `;
-    }
-
-    // Limpar filtros
-    clearFilters() {
-        this.currentFilters = {};
-        
-        // Limpar inputs
-        document.getElementById('searchText').value = '';
-        document.getElementById('dateFrom').value = '';
-        document.getElementById('dateTo').value = '';
-        document.getElementById('speciesFilter').selectedIndex = -1;
-        document.getElementById('doctorFilter').selectedIndex = 0;
-        document.getElementById('consultationTypeFilter').selectedIndex = 0;
-        document.getElementById('statusFilter').selectedIndex = 0;
-        document.getElementById('sortBy').selectedIndex = 0;
-        
-        // Reset filtros rápidos
-        document.querySelectorAll('.filter-btn').forEach(btn => 
-            btn.classList.remove('active'));
-        document.querySelector('[data-period="all"]').classList.add('active');
-        
-        this.applyFilters();
-    }
-
-    // Exportar resultados
-    async exportResults() {
-        try {
-            await this.client.exportResults(this.currentFilters, 'csv');
-            console.log('✅ Exportação iniciada');
-        } catch (error) {
-            console.error('❌ Erro na exportação:', error);
+        if ($httpCode !== 200) {
+            throw new Exception('Erro na busca: ' . $response);
         }
+        
+        return json_decode($response, true);
     }
-
-    // Helpers
-    truncateText(text, maxLength) {
-        if (text.length <= maxLength) return text;
-        return text.substr(0, maxLength) + '...';
+    
+    public function getCompletedNotes($page = 1, $limit = 10) {
+        return $this->searchNotes([
+            'transcription_status' => 'completed',
+            'page' => $page,
+            'limit' => $limit
+        ]);
     }
-
-    updateFilterInputs() {
-        if (this.currentFilters.dateFrom) {
-            document.getElementById('dateFrom').value = this.currentFilters.dateFrom;
-        }
-        if (this.currentFilters.dateTo) {
-            document.getElementById('dateTo').value = this.currentFilters.dateTo;
-        }
+    
+    public function getNotesByDateRange($fromDate, $toDate) {
+        return $this->searchNotes([
+            'from' => $fromDate,
+            'to' => $toDate,
+            'transcription_status' => 'completed'
+        ]);
+    }
+    
+    public function getPatientNotes($patientName) {
+        return $this->searchNotes([
+            'name' => $patientName,
+            'transcription_status' => 'completed'
+        ]);
+    }
+    
+    public function getRecentNotes($days = 7) {
+        $toDate = date('Y-m-d');
+        $fromDate = date('Y-m-d', strtotime("-{$days} days"));
+        
+        return $this->getNotesByDateRange($fromDate, $toDate);
     }
 }
 
-// Funções globais para ações das notas
-window.viewNote = (noteId) => {
-    window.location.href = `/notes/${noteId}`;
-};
+// Exemplos de uso
+try {
+    $filter = new NotesFilter($_ENV['CONNECTVETS_API_KEY']);
+    
+    // Buscar notas de hoje
+    $today = date('Y-m-d');
+    $todayNotes = $filter->getNotesByDateRange($today, $today);
+    echo "Notas de hoje: " . count($todayNotes['data']) . "\n";
+    
+    // Buscar notas de um paciente
+    $rexNotes = $filter->getPatientNotes('Rex');
+    echo "Notas do Rex: " . count($rexNotes['data']) . "\n";
+    
+    // Buscar notas dos últimos 30 dias
+    $recentNotes = $filter->getRecentNotes(30);
+    echo "Notas recentes: " . count($recentNotes['data']) . "\n";
+    
+} catch (Exception $e) {
+    echo "Erro: " . $e->getMessage() . "\n";
+}
+?>
+```
 
-window.downloadNote = async (noteId) => {
-    // Implementar download da nota
-    console.log('Download nota:', noteId);
-};
+## Parâmetros de Filtro Disponíveis
 
-// Inicializar aplicação
-document.addEventListener('DOMContentLoaded', () => {
-    window.filtersApp = new FiltersApp();
+| Parâmetro | Tipo | Descrição | Exemplo |
+|-----------|------|-----------|---------|
+| `transcription_status` | String | Status da transcrição | `completed`, `processing`, `failed` |
+| `name` | String | Nome do paciente (busca parcial) | `Rex`, `Mia` |
+| `from` | Date | Data inicial (YYYY-MM-DD) | `2024-01-01` |
+| `to` | Date | Data final (YYYY-MM-DD) | `2024-01-31` |
+| `days` | Integer | Últimos X dias | `7`, `30` |
+| `page` | Integer | Página (paginação) | `1`, `2`, `3` |
+| `limit` | Integer | Limite por página | `10`, `50`, `100` |
+| `external_id` | String | ID do seu sistema | `CLIENTE_123` |
+
+## Combinando Filtros
+
+### Busca Complexa
+
+```javascript
+// Buscar notas processadas do último mês de pacientes específicos
+const complexSearch = await filter.searchNotes({
+  transcription_status: 'completed',
+  from: '2024-01-01',
+  to: '2024-01-31',
+  limit: 100
 });
+
+// Filtrar ainda mais nos resultados (lado cliente)
+const dogNotes = complexSearch.data.filter(note => 
+  note.name.toLowerCase().includes('rex') || 
+  note.name.toLowerCase().includes('bob')
+);
 ```
 
-## Filtros Suportados
+### Paginação
 
-### 📝 Busca Textual
 ```javascript
-// Busca em múltiplos campos
-const searchParams = {
-    search: "dor abdomen", // Busca em: paciente, diagnóstico, tratamento, transcrição
-};
-```
-
-### 📅 Filtros de Data
-```javascript
-const dateFilters = {
-    dateFrom: "2024-01-01",     // Data início
-    dateTo: "2024-12-31",       // Data fim
-    created_after: "2024-01-01T00:00:00Z",
-    created_before: "2024-12-31T23:59:59Z"
-};
-```
-
-### 🏥 Filtros Categóricos
-```javascript
-const categoryFilters = {
-    species: ["Canino", "Felino"],           // Múltiplas espécies
-    doctor_name: "Dr. Silva",                // Veterinário específico
-    consultation_type: "cirurgia",           // Tipo de consulta
-    status: "completed"                      // Status do processamento
-};
-```
-
-### 📊 Ordenação
-```javascript
-const sortOptions = {
-    sort_by: "created_at",        // Campo: created_at, patient_name, doctor_name
-    sort_direction: "desc"        // Direção: asc, desc
-};
+async function getAllNotes(filters = {}) {
+  const allNotes = [];
+  let page = 1;
+  const limit = 50;
+  
+  while (true) {
+    const response = await filter.searchNotes({
+      ...filters,
+      page,
+      limit
+    });
+    
+    if (response.data.length === 0) break;
+    
+    allNotes.push(...response.data);
+    page++;
+    
+    // Limite de segurança
+    if (page > 100) break;
+  }
+  
+  return allNotes;
+}
 ```
 
 ## Casos de Uso Práticos
 
-### 1. Buscar Consultas Recentes
+### 1. Relatório Diário
+
 ```javascript
-// Consultas dos últimos 7 dias
-const filters = {
-    dateFrom: new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0],
-    dateTo: new Date().toISOString().split('T')[0],
-    sortBy: "created_at_desc"
-};
+async function dailyReport(date) {
+  const notes = await filter.getNotesByDateRange(date, date);
+  
+  const stats = {
+    total: notes.data.length,
+    completed: notes.data.filter(n => n.transcription_status === 'completed').length,
+    failed: notes.data.filter(n => n.transcription_status === 'failed').length
+  };
+  
+  console.log(`Relatório de ${date}:`);
+  console.log(`Total: ${stats.total}`);
+  console.log(`Processadas: ${stats.completed}`);
+  console.log(`Com erro: ${stats.failed}`);
+  
+  return stats;
+}
 ```
 
-### 2. Consultas de Emergência
+### 2. Buscar Histórico do Paciente
+
 ```javascript
-// Apenas emergências não processadas
-const emergencyFilters = {
-    consultation_type: "emergencia",
-    status: "processing",
-    sortBy: "created_at_desc"
-};
+async function getPatientHistory(patientName) {
+  const notes = await filter.getPatientNotes(patientName);
+  
+  // Ordenar por data (mais recente primeiro)
+  const sortedNotes = notes.data.sort((a, b) => 
+    new Date(b.created_at) - new Date(a.created_at)
+  );
+  
+  return sortedNotes.map(note => ({
+    id: note.id,
+    date: note.created_at.split('T')[0],
+    status: note.transcription_status,
+    sections: note.note_sections?.length || 0
+  }));
+}
 ```
 
-### 3. Relatório Mensal por Veterinário
+### 3. Monitorar Falhas
+
 ```javascript
-// Dr. Silva - Janeiro 2024
-const monthlyReport = {
-    doctor: "Dr. Silva",
-    dateFrom: "2024-01-01",
-    dateTo: "2024-01-31",
-    status: "completed"
-};
+async function checkFailures() {
+  const failedNotes = await filter.searchNotes({
+    transcription_status: 'failed',
+    days: 1 // Último dia
+  });
+  
+  if (failedNotes.data.length > 0) {
+    console.log(`⚠️ ${failedNotes.data.length} notas falharam nas últimas 24h`);
+    
+    failedNotes.data.forEach(note => {
+      console.log(`- ${note.id}: ${note.name} (${note.created_at})`);
+    });
+  }
+  
+  return failedNotes.data;
+}
 ```
 
-## Próximos Passos
+## Otimização de Performance
+
+### Cache de Resultados
+
+```javascript
+class CachedNotesFilter extends NotesFilter {
+  constructor(apiKey) {
+    super(apiKey);
+    this.cache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 minutos
+  }
+  
+  async searchNotes(filters = {}) {
+    const cacheKey = JSON.stringify(filters);
+    const cached = this.cache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+      console.log('📋 Resultado do cache');
+      return cached.data;
+    }
+    
+    const result = await super.searchNotes(filters);
+    
+    this.cache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now()
+    });
+    
+    return result;
+  }
+}
+```
+
+---
 
 <CardGroup cols={2}>
-  <Card
-    title="Webhook Handling"
-    icon="webhook"
-    href="/examples/webhook-handling"
-  >
-    Notificações automáticas em tempo real
+  <Card title="Integração Básica" icon="code" href="/examples/basic-integration">
+    Voltar aos exemplos básicos
   </Card>
-  <Card
-    title="Integração Básica"
-    icon="play"
-    href="/examples/basic-integration"
-  >
-    Voltar ao exemplo básico
+  <Card title="Referência da API" icon="book" href="/api-reference/overview">
+    Ver documentação completa
   </Card>
-  <Card
-    title="API Reference"
-    icon="book"
-    href="/api-reference/notes/list"
-  >
-    Documentação completa dos filtros
-  </Card>
-  <Card
-    title="Error Handling"
-    icon="alert-triangle"
-    href="/integration/error-handling"
-  >
-    Tratamento robusto de erros
-  </Card>
-</CardGroup> 
+</CardGroup>
+
+<Tip>
+**Dica**: Use paginação para grandes volumes de dados e implemente cache para melhorar a performance.
+</Tip> 

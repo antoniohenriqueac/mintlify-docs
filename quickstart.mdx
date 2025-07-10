@@ -1,43 +1,39 @@
 ---
 title: "Guia de Início Rápido"
-description: "Configure sua primeira integração com ConnectVets Notes em menos de 10 minutos"
+description: "Configure sua primeira integração com ConnectVets Notes em minutos"
 icon: "rocket"
 ---
 
-# Configure em menos de 10 minutos ⚡
+# Primeiros passos com a API
 
-Seja bem-vindo! Este guia irá te ajudar a fazer sua primeira chamada à API ConnectVets Notes e processar um áudio de consulta veterinária.
+Este guia te ajudará a fazer sua primeira chamada à API e processar um áudio de consulta veterinária em poucos minutos.
 
-<Info>
-**Pré-requisitos**: Você precisará de uma conta ConnectVets Notes. [Crie sua conta gratuita](https://notes.connectvets.com.br/signup) se ainda não possui uma.
-</Info>
-
-## Passo 1: Obtenha suas credenciais
+## Passo 1: Obtenha sua API Key
 
 <Steps>
-  <Step title="Faça login no dashboard">
-    Acesse [notes.connectvets.com.br](https://notes.connectvets.com.br) e faça login
+  <Step title="Crie sua conta">
+    Entre em contato conosco via [WhatsApp](https://wa.me/5531888835141) para solicitar acesso à API
   </Step>
-  <Step title="Navegue até API Keys">
-    No menu lateral, clique em **"Configurações"** → **"API Keys"**
+  <Step title="Receba suas credenciais">
+    Nossa equipe fornecerá sua API Key e instruções de acesso
   </Step>
-  <Step title="Crie uma nova API Key">
-    Clique em **"Nova API Key"**, defina um nome descritivo e copie a chave gerada
+  <Step title="Configure o ambiente">
+    Use o endpoint base: `https://api.connectvets.com.br/v1`
   </Step>
 </Steps>
 
 <Warning>
-**Importante**: Guarde sua API Key em segurança. Ela não será exibida novamente após a criação.
+**Importante**: Mantenha sua API Key segura e nunca a exponha em código frontend.
 </Warning>
 
 ## Passo 2: Teste a conexão
 
-Vamos verificar se tudo está funcionando com uma chamada simples:
+Vamos verificar se sua API Key está funcionando:
 
 <CodeGroup>
 ```bash cURL
 curl -X GET "https://api.connectvets.com.br/v1/notes" \
-  -H "X-API-KEY: your_api_key_here" \
+  -H "X-API-KEY: sua_api_key_aqui" \
   -H "Content-Type: application/json"
 ```
 
@@ -45,7 +41,7 @@ curl -X GET "https://api.connectvets.com.br/v1/notes" \
 const response = await fetch('https://api.connectvets.com.br/v1/notes', {
   method: 'GET',
   headers: {
-    'X-API-KEY': 'your_api_key_here',
+    'X-API-KEY': 'sua_api_key_aqui',
     'Content-Type': 'application/json'
   }
 });
@@ -58,7 +54,7 @@ console.log(data);
 import requests
 
 headers = {
-    'X-API-KEY': 'your_api_key_here',
+    'X-API-KEY': 'sua_api_key_aqui',
     'Content-Type': 'application/json'
 }
 
@@ -69,65 +65,36 @@ response = requests.get(
 
 print(response.json())
 ```
-
-```go Go
-package main
-
-import (
-    "fmt"
-    "net/http"
-    "io"
-)
-
-func main() {
-    client := &http.Client{}
-    req, _ := http.NewRequest("GET", "https://api.connectvets.com.br/v1/notes", nil)
-    
-    req.Header.Add("X-API-KEY", "your_api_key_here")
-    req.Header.Add("Content-Type", "application/json")
-    
-    resp, err := client.Do(req)
-    if err != nil {
-        panic(err)
-    }
-    defer resp.Body.Close()
-    
-    body, _ := io.ReadAll(resp.Body)
-    fmt.Println(string(body))
-}
-```
 </CodeGroup>
 
-<Accordion title="Resposta esperada">
+**Resposta esperada:**
 ```json
 {
   "data": [],
   "meta": {
     "total": 0,
     "page": 1,
-    "limit": 10,
-    "total_pages": 0
+    "limit": 10
   },
   "status": "success"
 }
 ```
-</Accordion>
 
 ## Passo 3: Envie seu primeiro áudio
 
-Agora vamos processar um arquivo de áudio. Você pode usar um áudio de teste ou uma gravação real:
+Agora vamos processar um arquivo de áudio:
 
 <CodeGroup>
 ```bash cURL
 curl -X POST "https://api.connectvets.com.br/v1/notes" \
-  -H "X-API-KEY: your_api_key_here" \
-  -F "audio=@path/to/your/audio.mp3" \
+  -H "X-API-KEY: sua_api_key_aqui" \
+  -F "audio=@caminho/para/audio.mp3" \
   -F "metadata={\"patient_name\":\"Rex\",\"owner_name\":\"João Silva\"}"
 ```
 
 ```javascript JavaScript
 const formData = new FormData();
-formData.append('audio', audioFile); // audioFile é um objeto File
+formData.append('audio', audioFile); // objeto File do input
 formData.append('metadata', JSON.stringify({
   patient_name: "Rex",
   owner_name: "João Silva"
@@ -136,232 +103,183 @@ formData.append('metadata', JSON.stringify({
 const response = await fetch('https://api.connectvets.com.br/v1/notes', {
   method: 'POST',
   headers: {
-    'X-API-KEY': 'your_api_key_here'
+    'X-API-KEY': 'sua_api_key_aqui'
   },
   body: formData
 });
 
 const result = await response.json();
-console.log('Note criada:', result);
+console.log('Nota criada:', result);
 ```
 
 ```python Python
 import requests
 
 files = {
-    'audio': ('audio.mp3', open('path/to/audio.mp3', 'rb'), 'audio/mpeg'),
-    'metadata': (None, '{"patient_name":"Rex","owner_name":"João Silva"}')
+    'audio': ('audio.mp3', open('caminho/para/audio.mp3', 'rb'), 'audio/mpeg')
+}
+
+data = {
+    'metadata': '{"patient_name":"Rex","owner_name":"João Silva"}'
 }
 
 headers = {
-    'X-API-KEY': 'your_api_key_here'
+    'X-API-KEY': 'sua_api_key_aqui'
 }
 
 response = requests.post(
     'https://api.connectvets.com.br/v1/notes',
     headers=headers,
-    files=files
+    files=files,
+    data=data
 )
 
 print(response.json())
 ```
-
-```go Go
-package main
-
-import (
-    "bytes"
-    "mime/multipart"
-    "net/http"
-    "os"
-)
-
-func main() {
-    var b bytes.Buffer
-    w := multipart.NewWriter(&b)
-    
-    // Adicionar arquivo de áudio
-    f, _ := os.Open("path/to/audio.mp3")
-    defer f.Close()
-    fw, _ := w.CreateFormFile("audio", "audio.mp3")
-    io.Copy(fw, f)
-    
-    // Adicionar metadata
-    w.WriteField("metadata", `{"patient_name":"Rex","owner_name":"João Silva"}`)
-    w.Close()
-    
-    req, _ := http.NewRequest("POST", "https://api.connectvets.com.br/v1/notes", &b)
-    req.Header.Set("Content-Type", w.FormDataContentType())
-    req.Header.Set("X-API-KEY", "your_api_key_here")
-    
-    client := &http.Client{}
-    resp, _ := client.Do(req)
-    defer resp.Body.Close()
-}
-```
 </CodeGroup>
 
-## Passo 4: Monitore o processamento
-
-O processamento do áudio é assíncrono. Use o ID retornado para verificar o status:
-
-<CodeGroup>
-```bash cURL
-# Substitua {note_id} pelo ID retornado no passo anterior
-curl -X GET "https://api.connectvets.com.br/v1/notes/{note_id}" \
-  -H "X-API-KEY: your_api_key_here"
-```
-
-```javascript JavaScript
-async function checkStatus(noteId) {
-  const response = await fetch(`https://api.connectvets.com.br/v1/notes/${noteId}`, {
-    headers: {
-      'X-API-KEY': 'your_api_key_here'
-    }
-  });
-  
-  const note = await response.json();
-  console.log('Status:', note.data.status);
-  
-  if (note.data.status === 'completed') {
-    console.log('Transcrição:', note.data.transcription);
-    console.log('Análise:', note.data.analysis);
-  }
-  
-  return note.data;
-}
-```
-
-```python Python
-import time
-
-def wait_for_completion(note_id):
-    headers = {'X-API-KEY': 'your_api_key_here'}
-    
-    while True:
-        response = requests.get(
-            f'https://api.connectvets.com.br/v1/notes/{note_id}',
-            headers=headers
-        )
-        
-        note = response.json()['data']
-        print(f"Status: {note['status']}")
-        
-        if note['status'] == 'completed':
-            print("Transcrição completa!")
-            return note
-        elif note['status'] == 'failed':
-            print("Erro no processamento")
-            return note
-            
-        time.sleep(5)  # Aguarda 5 segundos antes de verificar novamente
-```
-</CodeGroup>
-
-## Status do processamento
-
-<CardGroup cols={4}>
-  <Card title="pending" icon="clock" color="#f59e0b">
-    Áudio na fila de processamento
-  </Card>
-  <Card title="processing" icon="cog" color="#3b82f6">
-    Transcrição em andamento
-  </Card>
-  <Card title="completed" icon="check" color="#10b981">
-    Processamento finalizado
-  </Card>
-  <Card title="failed" icon="x" color="#ef4444">
-    Erro no processamento
-  </Card>
-</CardGroup>
-
-## Exemplo de resposta completa
-
-Quando o processamento estiver concluído (`status: "completed"`), você receberá algo como:
-
-<Accordion title="Ver exemplo completo">
+**Resposta esperada:**
 ```json
 {
   "data": {
-    "id": "note_1234567890",
-    "status": "completed",
-    "patient_name": "Rex",
-    "owner_name": "João Silva",
-    "created_at": "2024-01-15T10:30:00Z",
-    "transcription": {
-      "text": "Paciente Rex, labrador de 3 anos, apresenta sintomas de gastroenterite. Recomendo dieta leve por 3 dias e medicação antiespasmódica.",
-      "confidence": 0.95,
-      "duration": 45.2
-    },
-    "analysis": {
-      "diagnosis": ["gastroenterite"],
-      "symptoms": ["sintomas digestivos"],
-      "treatment": ["dieta leve", "medicação antiespasmódica"],
-      "species": "canino",
-      "breed": "labrador"
-    },
-    "sections": [
-      {
-        "type": "anamnese",
-        "content": "Paciente Rex, labrador de 3 anos...",
-        "timestamp": "00:00"
-      },
-      {
-        "type": "diagnostico",
-        "content": "gastroenterite",
-        "timestamp": "00:35"
-      }
-    ]
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Rex", 
+    "transcription_status": "pending",
+    "created_at": "2024-01-15T10:30:00Z"
   },
   "status": "success"
 }
 ```
-</Accordion>
 
-## Próximos passos
+## Passo 4: Monitore o processamento
+
+O processamento é assíncrono. Verifique o status:
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.connectvets.com.br/v1/notes/550e8400-e29b-41d4-a716-446655440000" \
+  -H "X-API-KEY: sua_api_key_aqui"
+```
+
+```javascript JavaScript
+const noteId = "550e8400-e29b-41d4-a716-446655440000";
+
+const checkStatus = async () => {
+  const response = await fetch(`https://api.connectvets.com.br/v1/notes/${noteId}`, {
+    headers: {
+      'X-API-KEY': 'sua_api_key_aqui'
+    }
+  });
+  
+  const note = await response.json();
+  return note.data.transcription_status;
+};
+
+// Verificar a cada 10 segundos
+const interval = setInterval(async () => {
+  const status = await checkStatus();
+  console.log('Status:', status);
+  
+  if (status === 'completed' || status === 'failed') {
+    clearInterval(interval);
+  }
+}, 10000);
+```
+
+```python Python
+import time
+import requests
+
+def check_status(note_id, api_key):
+    response = requests.get(
+        f'https://api.connectvets.com.br/v1/notes/{note_id}',
+        headers={'X-API-KEY': api_key}
+    )
+    return response.json()['data']['transcription_status']
+
+note_id = "550e8400-e29b-41d4-a716-446655440000"
+
+while True:
+    status = check_status(note_id, 'sua_api_key_aqui')
+    print(f'Status: {status}')
+    
+    if status in ['completed', 'failed']:
+        break
+        
+    time.sleep(10)
+```
+</CodeGroup>
+
+## Passo 5: Obtenha os resultados
+
+Quando o status for `completed`, você pode acessar as seções:
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.connectvets.com.br/v1/notes/550e8400-e29b-41d4-a716-446655440000" \
+  -H "X-API-KEY: sua_api_key_aqui"
+```
+
+```javascript JavaScript
+const response = await fetch(`https://api.connectvets.com.br/v1/notes/${noteId}`, {
+  headers: {
+    'X-API-KEY': 'sua_api_key_aqui'
+  }
+});
+
+const note = await response.json();
+
+// Acessar seções estruturadas
+note.data.note_sections.forEach(section => {
+  console.log(`${section.title}: ${section.content}`);
+});
+```
+</CodeGroup>
+
+**Exemplo de resposta completa:**
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Rex",
+    "transcription_status": "completed",
+    "note_sections": [
+      {
+        "title": "Anamnese",
+        "label": "anamnesis", 
+        "content": "Paciente apresenta histórico de...",
+        "order": "1"
+      },
+      {
+        "title": "Diagnóstico",
+        "label": "diagnosis",
+        "content": "Após exame físico, diagnosticado...",
+        "order": "2" 
+      }
+    ]
+  }
+}
+```
+
+## 🎯 Próximos passos
 
 <CardGroup cols={2}>
-  <Card title="Webhook Setup" icon="webhook" href="/concepts/webhooks">
-    Configure notificações automáticas quando o processamento terminar
+  <Card title="Explore a API" icon="code" href="/api-reference/overview">
+    Veja todos os endpoints disponíveis
   </Card>
-  <Card title="Integração Avançada" icon="puzzle-piece" href="/examples/advanced-filtering">
-    Aprenda a filtrar e buscar suas notas
+  <Card title="Configure Webhooks" icon="webhook" href="/concepts/webhooks">
+    Receba notificações automáticas
   </Card>
-  <Card title="Tratamento de Erros" icon="shield-exclamation" href="/integration/error-handling">
+  <Card title="Formatos de áudio" icon="file-audio" href="/integration/audio-requirements">
+    Otimize a qualidade dos seus áudios
+  </Card>
+  <Card title="Tratamento de erros" icon="shield" href="/integration/error-handling">
     Implemente tratamento robusto de erros
   </Card>
-  <Card title="SDK Libraries" icon="code" href="/api-reference/overview">
-    Use nossas bibliotecas oficiais para sua linguagem
-  </Card>
 </CardGroup>
 
-## Arquivos de teste
-
-Para experimentar, você pode usar estes arquivos de áudio de exemplo:
-
-<CardGroup cols={2}>
-  <Card title="Download: Consulta Canina" icon="download" href="https://cdn.connectvets.com.br/samples/consulta-canina.mp3">
-    Áudio de exemplo - Consulta de rotina (30s)
-  </Card>
-  <Card title="Download: Emergência Felina" icon="download" href="https://cdn.connectvets.com.br/samples/emergencia-felina.mp3">
-    Áudio de exemplo - Atendimento de emergência (45s)
-  </Card>
-</CardGroup>
+---
 
 <Tip>
-**Dica profissional**: Configure webhooks para receber notificações automáticas quando o processamento terminar, evitando polling manual!
-</Tip>
-
-## Precisa de ajuda?
-
-<CardGroup cols={3}>
-  <Card title="Discord" icon="discord" href="https://discord.gg/uN4NxUGk">
-    Junte-se à nossa comunidade
-  </Card>
-  <Card title="WhatsApp" icon="phone" href="https://wa.me/5531888835141">
-    +55 31 8883-5141 - Suporte direto
-  </Card>
-  <Card title="Status" icon="chart-line" href="https://status.connectvets.com.br">
-    Verifique o status da API
-  </Card>
-</CardGroup> 
+**Dica**: Use webhooks para receber notificações automáticas quando o processamento for concluído, ao invés de fazer polling manual.
+</Tip> 
