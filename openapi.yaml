@@ -43,6 +43,7 @@ paths:
                   type: string
                   format: binary
                   description: Arquivo de áudio (WAV/FLAC recomendado)
+                  example: "consulta_rex_20240214.wav"
                 name:
                   type: string
                   description: Nome do paciente
@@ -90,6 +91,7 @@ paths:
             type: integer
             default: 1
           description: Número da página
+          example: 1
         - name: per_page
           in: query
           schema:
@@ -97,34 +99,40 @@ paths:
             default: 20
             maximum: 100
           description: Itens por página
+          example: 20
         - name: external_id
           in: query
           schema:
             type: string
           description: Filtrar por ID externo
+          example: "CLIENTE_123"
         - name: transcription_status
           in: query
           schema:
             type: string
             enum: [pending, processing, completed, failed]
           description: Filtrar por status de transcrição
+          example: "completed"
         - name: name
           in: query
           schema:
             type: string
           description: Busca parcial por nome do paciente
+          example: "Rex"
         - name: from
           in: query
           schema:
             type: string
             format: date
           description: Data inicial (YYYY-MM-DD)
+          example: "2024-01-01"
         - name: to
           in: query
           schema:
             type: string
             format: date
           description: Data final (YYYY-MM-DD)
+          example: "2024-12-31"
       responses:
         '200':
           description: Lista de notas
@@ -160,6 +168,7 @@ paths:
             type: string
             format: uuid
           description: ID da nota
+          example: "550e8400-e29b-41d4-a716-446655440000"
       responses:
         '200':
           description: Nota encontrada
