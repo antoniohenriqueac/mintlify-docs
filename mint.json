@@ -108,16 +108,16 @@
       "icon": "brackets-curly",
       "pages": [
         "api-reference/overview",
-        "api-reference/schemas",
-        {
-          "group": "Notes",
-          "icon": "file-medical",
-          "pages": [
-            "api-reference/notes/create",
-            "api-reference/notes/list",
-            "api-reference/notes/get"
-          ]
-        }
+        "api-reference/schemas"
+      ]
+    },
+    {
+      "group": "Notes",
+      "icon": "file-medical",
+      "pages": [
+        "api-reference/notes/create",
+        "api-reference/notes/list",
+        "api-reference/notes/get"
       ]
     },
     {
