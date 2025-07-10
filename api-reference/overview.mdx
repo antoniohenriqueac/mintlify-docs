@@ -54,12 +54,23 @@ Cada API Key possui limites específicos de uso. Entre em contato para discutir 
 
 ## Rate Limiting
 
-A API implementa rate limiting baseado na API Key:
+A API implementa rate limiting baseado na API Key para a maioria dos endpoints:
 
-- **Requisições por minuto**: Conforme seu plano
-- **Requisições por hora**: Conforme seu plano
+### Endpoints com Rate Limiting
 
-Headers de resposta incluem informações sobre os limites:
+Os seguintes endpoints possuem limitações (padrão: **100 req/min**, **1000 req/hora**):
+
+- `POST /notes` - Criação de notas
+- `GET /notes` - Listagem de notas  
+- `GET /notes/{id}` - Detalhes da nota
+
+### Endpoints SEM Rate Limiting
+
+- `GET /notes/{id}/status` - **Sem limitação**, mas recomendamos intervalo de 5s entre chamadas
+
+### Headers de Rate Limiting
+
+Quando aplicável, os headers de resposta incluem informações sobre os limites:
 
 ```http
 X-RateLimit-Limit-Minute: 100
@@ -117,12 +128,14 @@ A API ConnectVets Notes oferece endpoints para gerenciar **notas de consultas ve
 
 ### Notes
 
-| Endpoint | Método | Descrição |
-|----------|--------|-----------|
-| `/notes` | POST | Criar nova nota com upload de áudio |
-| `/notes` | GET | Listar notas com filtros |
-| `/notes/{id}` | GET | Obter detalhes de uma nota específica |
-| `/notes/{id}/status` | GET | Obter status de transcrição de uma nota |
+| Endpoint | Método | Descrição | Rate Limiting |
+|----------|--------|-----------|---------------|
+| `/notes` | POST | Criar nova nota com upload de áudio | ✅ 100/min, 1000/h |
+| `/notes` | GET | Listar notas com filtros | ✅ 100/min, 1000/h |
+| `/notes/{id}` | GET | Obter detalhes de uma nota específica | ✅ 100/min, 1000/h |
+| `/notes/{id}/status` | GET | Obter status de transcrição de uma nota | ❌ Sem limitação* |
+
+<small>* Recomendamos intervalo de 5s entre chamadas</small>
 
 ## Tipos de Dados
 
@@ -224,8 +237,15 @@ GET /notes?transcription_status=completed&days=30&limit=50
 ```
 
 <Info>
-**Dica**: Para verificar apenas o status de uma nota específica sem buscar todos os dados, use o endpoint [`/notes/{noteId}/status`](/api-reference/notes/status).
+**Dica**: Para verificar apenas o status de uma nota específica sem buscar todos os dados, use o endpoint [`/notes/{noteId}/status`](/api-reference/notes/status) - sem rate limiting para polling eficiente.
 </Info>
+
+### Boas Práticas para Rate Limiting
+
+1. **Use `/notes/{id}/status` para polling**: Sem limitações, ideal para verificações frequentes
+2. **Implemente backoff exponencial**: Para retries em caso de erro 429
+3. **Cache resultados quando possível**: Evite chamadas desnecessárias
+4. **Monitore headers de rate limit**: Para ajustar a frequência das requisições
 
 ## Upload de Arquivos
 
@@ -239,6 +259,20 @@ curl -X POST "https://api.connectvets.com.br/v1/notes" \
 ```
 
 ## Tratamento de Erros
+
+### Rate Limit Exceeded (429)
+
+Quando o rate limit é excedido, você receberá:
+
+```json
+{
+  "error": "too_many_requests",
+  "message": "Rate limit exceeded",
+  "code": "RATE_LIMIT_EXCEEDED"
+}
+```
+
+**Importante**: O endpoint `/notes/{id}/status` não possui esta limitação.
 
 ### Retry com Backoff
 

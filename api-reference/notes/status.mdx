@@ -7,15 +7,42 @@ openapi: 'GET /notes/{noteId}/status'
 
 Este endpoint é ideal para:
 
-- **Polling de status**: Verificar periodicamente se uma transcrição foi concluída
-- **Integração assíncrona**: Aguardar conclusão antes de buscar dados completos
+- **Polling de status**: ⚡ Verificar periodicamente se uma transcrição foi concluída (sem rate limiting!)
+- **Integração assíncrona**: Aguardar conclusão antes de buscar dados completos  
 - **Monitoramento**: Acompanhar o progresso de processamento em lote
 - **UI responsiva**: Atualizar interface com status em tempo real
 
+### Exemplo de Polling Eficiente
+
+```javascript
+async function pollNoteStatus(noteId, maxAttempts = 60) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const response = await fetch(`/notes/${noteId}/status`, {
+      headers: { 'X-API-KEY': 'sua_api_key' }
+    });
+    
+    const { data } = await response.json();
+    
+    if (data.status === 'completed' || data.status === 'failed') {
+      return data;
+    }
+    
+    // Aguardar 5 segundos antes da próxima verificação
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+  
+  throw new Error('Timeout: Status polling exceeded maximum attempts');
+}
+```
+
 ## Notas Importantes
 
+<Info>
+  **Rate Limiting**: ⚡ Este endpoint **NÃO possui rate limiting**, permitindo verificações frequentes quando necessário.
+</Info>
+
 <Warning>
-  Para evitar sobrecarga, implemente um intervalo de pelo menos 5 segundos entre verificações de status da mesma nota.
+  **Recomendação**: Mesmo sem rate limiting, implemente um intervalo de pelo menos **5 segundos** entre verificações de status da mesma nota para evitar sobrecarga desnecessária do servidor.
 </Warning>
 
 <Info>

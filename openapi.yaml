@@ -24,7 +24,10 @@ paths:
       tags:
         - Notes
       summary: Criar nova nota
-      description: Envie áudio para transcrição e criação de nota veterinária
+      description: |
+        Envie áudio para transcrição e criação de nota veterinária.
+        
+        **Rate Limiting**: Este endpoint está sujeito aos limites da sua API Key (padrão: 100 req/min, 1000 req/hora).
       operationId: createNote
       requestBody:
         required: true
@@ -75,7 +78,10 @@ paths:
       tags:
         - Notes
       summary: Listar notas
-      description: Obter lista paginada de notas
+      description: |
+        Obter lista paginada de notas.
+        
+        **Rate Limiting**: Este endpoint está sujeito aos limites da sua API Key (padrão: 100 req/min, 1000 req/hora).
       operationId: listNotes
       parameters:
         - name: page
@@ -141,7 +147,10 @@ paths:
       tags:
         - Notes
       summary: Obter nota específica
-      description: Recuperar uma nota pelo ID
+      description: |
+        Recuperar uma nota pelo ID.
+        
+        **Rate Limiting**: Este endpoint está sujeito aos limites da sua API Key (padrão: 100 req/min, 1000 req/hora).
       operationId: getNote
       parameters:
         - name: noteId
@@ -171,7 +180,10 @@ paths:
       tags:
         - Notes
       summary: Obter status da nota
-      description: Retorna o status atual de transcrição de uma nota específica
+      description: |
+        Retorna o status atual de transcrição de uma nota específica.
+        
+        **Rate Limiting**: ⚡ Este endpoint **NÃO possui rate limiting**, mas recomendamos fazer chamadas com intervalo de pelo menos 5 segundos para evitar sobrecarga desnecessária.
       operationId: getNoteStatus
       parameters:
         - name: noteId
