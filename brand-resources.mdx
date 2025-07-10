@@ -114,7 +114,7 @@ Use estas versões oficiais da logo ConnectVets Notes em suas integrações e ap
 <img 
   src="/img/Logo_Black.png" 
   alt="ConnectVets Notes"
-  style="max-width: 200px; height: auto;"
+  style="max-width: 400px; height: auto;"
 >
 
 <!-- Logo com tema automático -->
@@ -135,7 +135,7 @@ Use estas versões oficiais da logo ConnectVets Notes em suas integrações e ap
 ```css
 /* Logo responsiva */
 .connectvets-logo {
-  max-width: 200px;
+  max-width: 400px;  /* Aumentado de 200px para 400px */
   height: auto;
   display: block;
 }
@@ -163,8 +163,8 @@ function ConnectVetsLogo({ theme = 'auto' }) {
       <Image
         src={theme === 'dark' ? '/img/Logo_White.png' : '/img/Logo_Black.png'}
         alt="ConnectVets Notes"
-        width={200}
-        height={60}
+        width={400}  // Aumentado de 200 para 400
+        height={120} // Proporcionalmente ajustado
         priority
       />
     </div>

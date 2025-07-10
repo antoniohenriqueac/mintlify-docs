@@ -40,17 +40,9 @@
     "style": "gradient"
   },
   "topbarLinks": [
-    {
-      "name": "Portal Web",
-      "url": "https://notes.connectvets.com.br"
-    },
-    {
-      "name": "WhatsApp",
-      "url": "https://wa.me/5531888835141"
-    }
   ],
   "topbarCtaButton": {
-    "name": "Dashboard",
+    "name": "Notes Web",
     "url": "https://notes.connectvets.com.br",
     "style": "pill"
   },
@@ -64,14 +56,24 @@
   "openapi": "openapi.yaml",
   "anchors": [
     {
-      "name": "API Playground",
-      "icon": "play",
-      "url": "https://api.connectvets.com.br/playground"
+      "name": "ConnectVets",
+      "icon": "globe",
+      "url": "https://connectvets.com.br"
     },
     {
-      "name": "Status",
-      "icon": "chart-line",
-      "url": "https://status.connectvets.com.br"
+      "name": "WhatsApp",
+      "icon": "whatsapp",
+      "url": "https://wa.me/5531888835141"
+    },
+    {
+      "name": "Instagram",
+      "icon": "instagram",
+      "url": "https://www.instagram.com/connect.vets/"
+    },
+    {
+      "name": "Blog",
+      "icon": "blog",
+      "url": "https://connectvets.com.br/connectvets-blog/"
     },
     {
       "name": "Discord",
