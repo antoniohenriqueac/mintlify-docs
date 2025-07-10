@@ -1,0 +1,193 @@
+---
+title: 'Recursos da Marca'
+description: 'Logos, cores e recursos visuais do ConnectVets Notes para desenvolvedores'
+---
+
+## Logos do ConnectVets Notes
+
+Use estas versões oficiais da logo ConnectVets Notes em suas integrações e aplicações.
+
+### Logo Principal
+
+<CardGroup cols={2}>
+  <Card>
+    **Logo Escura** - Para fundos claros
+    <img 
+      src="/img/Logo_Black.png" 
+      alt="ConnectVets Notes - Logo Escura"
+      style={{ maxWidth: '300px', background: '#f9f9f9', padding: '20px', borderRadius: '8px' }}
+    />
+    [Download PNG](/img/Logo_Black.png)
+  </Card>
+  
+  <Card>
+    **Logo Clara** - Para fundos escuros
+    <img 
+      src="/img/Logo_White.png" 
+      alt="ConnectVets Notes - Logo Clara"
+      style={{ maxWidth: '300px', background: '#1a1a1a', padding: '20px', borderRadius: '8px' }}
+    />
+    [Download PNG](/img/Logo_White.png)
+  </Card>
+</CardGroup>
+
+### Ícone
+
+<Card>
+  **Ícone/Favicon**
+  <img 
+    src="/img/Logo_icon.png" 
+    alt="ConnectVets Notes - Ícone"
+    style={{ maxWidth: '100px', background: '#f9f9f9', padding: '15px', borderRadius: '8px' }}
+  />
+  [Download PNG](/img/Logo_icon.png)
+</Card>
+
+## Paleta de Cores
+
+### Cores Primárias
+
+<div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', margin: '20px 0' }}>
+  <div style={{ textAlign: 'center' }}>
+    <div style={{ width: '80px', height: '80px', backgroundColor: '#2563eb', borderRadius: '8px', margin: '0 auto 8px' }}></div>
+    <strong>Azul Primário</strong><br />
+    <code>#2563eb</code>
+  </div>
+  
+  <div style={{ textAlign: 'center' }}>
+    <div style={{ width: '80px', height: '80px', backgroundColor: '#3b82f6', borderRadius: '8px', margin: '0 auto 8px' }}></div>
+    <strong>Azul Claro</strong><br />
+    <code>#3b82f6</code>
+  </div>
+  
+  <div style={{ textAlign: 'center' }}>
+    <div style={{ width: '80px', height: '80px', backgroundColor: '#1d4ed8', borderRadius: '8px', margin: '0 auto 8px' }}></div>
+    <strong>Azul Escuro</strong><br />
+    <code>#1d4ed8</code>
+  </div>
+</div>
+
+### Cores Neutras
+
+<div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', margin: '20px 0' }}>
+  <div style={{ textAlign: 'center' }}>
+    <div style={{ width: '80px', height: '80px', backgroundColor: '#000000', borderRadius: '8px', margin: '0 auto 8px' }}></div>
+    <strong>Preto</strong><br />
+    <code>#000000</code>
+  </div>
+  
+  <div style={{ textAlign: 'center' }}>
+    <div style={{ width: '80px', height: '80px', backgroundColor: '#ffffff', border: '1px solid #e5e5e5', borderRadius: '8px', margin: '0 auto 8px' }}></div>
+    <strong>Branco</strong><br />
+    <code>#ffffff</code>
+  </div>
+  
+  <div style={{ textAlign: 'center' }}>
+    <div style={{ width: '80px', height: '80px', backgroundColor: '#f9f9f9', border: '1px solid #e5e5e5', borderRadius: '8px', margin: '0 auto 8px' }}></div>
+    <strong>Cinza Claro</strong><br />
+    <code>#f9f9f9</code>
+  </div>
+</div>
+
+## Diretrizes de Uso
+
+### ✅ Permitido
+
+- Usar em integrações oficiais com a API ConnectVets Notes
+- Incluir em documentação de sistemas veterinários que usam nossa API
+- Usar em interfaces que se conectam com nossa plataforma
+- Redimensionar mantendo as proporções originais
+
+### ❌ Não Permitido
+
+- Modificar as cores ou elementos da logo
+- Usar em contextos que não sejam relacionados ao ConnectVets Notes
+- Distorcer ou alterar as proporções
+- Usar como parte de outras marcas ou logos
+
+## Implementação em Código
+
+### HTML
+
+```html
+<!-- Logo responsiva -->
+<img 
+  src="/img/Logo_Black.png" 
+  alt="ConnectVets Notes"
+  style="max-width: 200px; height: auto;"
+>
+
+<!-- Logo com tema automático -->
+<img 
+  src="/img/Logo_Black.png" 
+  alt="ConnectVets Notes"
+  class="block dark:hidden"
+>
+<img 
+  src="/img/Logo_White.png" 
+  alt="ConnectVets Notes"
+  class="hidden dark:block"
+>
+```
+
+### CSS
+
+```css
+/* Logo responsiva */
+.connectvets-logo {
+  max-width: 200px;
+  height: auto;
+  display: block;
+}
+
+/* Tema escuro automático */
+@media (prefers-color-scheme: dark) {
+  .logo-light { display: none; }
+  .logo-dark { display: block; }
+}
+
+@media (prefers-color-scheme: light) {
+  .logo-light { display: block; }
+  .logo-dark { display: none; }
+}
+```
+
+### React/Next.js
+
+```jsx
+import Image from 'next/image'
+
+function ConnectVetsLogo({ theme = 'auto' }) {
+  return (
+    <div className="connectvets-logo">
+      <Image
+        src={theme === 'dark' ? '/img/Logo_White.png' : '/img/Logo_Black.png'}
+        alt="ConnectVets Notes"
+        width={200}
+        height={60}
+        priority
+      />
+    </div>
+  )
+}
+```
+
+## Favicon
+
+Para usar o favicon do ConnectVets Notes em sua aplicação:
+
+```html
+<link rel="icon" type="image/png" href="/img/Logo_icon.png">
+<link rel="apple-touch-icon" href="/img/Logo_icon.png">
+```
+
+## Contato
+
+Para dúvidas sobre o uso da marca ou solicitação de recursos adicionais:
+
+- **Email**: branding@connectvets.com.br
+- **Suporte**: support@connectvets.com.br
+
+<Warning>
+  O uso inadequado da marca ConnectVets Notes pode resultar na suspensão do acesso à API. Use sempre de acordo com estas diretrizes.
+</Warning> 

@@ -1,33 +1,35 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "API Reference"
+description: "Documentação completa da API ConnectVets Notes"
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+## Visão Geral
 
-## Welcome
+A API ConnectVets Notes oferece endpoints para transcrição de áudio e análise inteligente de consultas veterinárias. Esta seção contém a documentação completa de todos os endpoints disponíveis.
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+## Estrutura da API
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+A API é organizada em categorias principais:
 
-## Authentication
+### Notes
+Endpoints para criar, listar e obter notas de consultas veterinárias.
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+### API Keys
+Gerenciamento de chaves de API para autenticação.
 
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
-```
+### Webhooks
+Configuração de webhooks para receber notificações de eventos.
+
+## Começando
+
+Para começar a usar a API:
+
+1. [Obtenha suas credenciais](../authentication)
+2. [Explore os endpoints](./overview)
+3. [Teste no playground](https://api.connectvets.com.br/playground)
+
+## Recursos Adicionais
+
+- [Esquemas de dados](./schemas)
+- [Códigos de erro](../integration/error-handling)
+- [Playground interativo](https://api.connectvets.com.br/playground) 

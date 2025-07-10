@@ -1,0 +1,400 @@
+---
+title: 'Schemas e Tipos de Dados'
+description: 'Definições completas dos tipos de dados da API ConnectVets Notes'
+---
+
+## Visão Geral
+
+Esta página documenta todos os tipos de dados (schemas) utilizados pela API ConnectVets Notes. Estes schemas seguem as convenções JSON e são consistentes em toda a API.
+
+## Schemas Principais
+
+### Note
+
+Representa uma nota veterinária completa com áudio, transcrição e seções.
+
+```typescript
+interface Note {
+  id: string;                    // UUID da nota
+  name: string;                  // Nome do paciente
+  gender: "male" | "female" | "unidentified"; // Sexo do paciente
+  audio_name: string;            // Nome do arquivo de áudio
+  audio_url: string;             // URL para download do áudio
+  transcription_status: "pending" | "processing" | "completed" | "failed"; // Status da transcrição
+  transcription_url?: string;    // URL para download da transcrição (opcional)
+  external_id?: string;          // ID do sistema externo (opcional)
+  metadata: MetadataItem[];      // Metadados adicionais
+  note_sections: NoteSection[];  // Seções estruturadas (apenas no GET /notes/{id})
+  created_at: string;            // Data de criação (ISO 8601)
+  updated_at: string;            // Data da última atualização (ISO 8601)
+}
+```
+
+#### Exemplo
+```json
+{
+  "id": "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3",
+  "name": "Rex",
+  "gender": "male",
+  "audio_name": "rex_visit_20240214.wav",
+  "audio_url": "https://cdn.connectvets.com/audio/6a4fe1de.wav",
+  "transcription_status": "completed",
+  "transcription_url": "https://cdn.connectvets.com/transcripts/6a4fe1de.txt",
+  "external_id": "CLIENTE_123",
+  "metadata": [
+    {"key": "procedimento", "value": "vacina"},
+    {"key": "veterinario", "value": "Dr. João Silva"}
+  ],
+  "note_sections": [
+    {
+      "id": "9b7d8b6a-12e3-45fa-9c1c-7e12f5c4a1b2",
+      "title": "Anamnese",
+      "label": "anamnesis",
+      "content": "Paciente apresenta diminuição do apetite nos últimos 3 dias...",
+      "order": "1"
+    }
+  ],
+  "created_at": "2024-02-14T18:25:43Z",
+  "updated_at": "2024-02-14T18:30:23Z"
+}
+```
+
+### NoteSection
+
+Representa uma seção estruturada de uma nota (anamnese, exame físico, etc.).
+
+```typescript
+interface NoteSection {
+  id: string;        // UUID da seção
+  title: string;     // Título exibido da seção
+  label: string;     // Identificador interno (para programação)
+  content: string;   // Conteúdo transcrito da seção
+  order: string;     // Ordem de exibição ("1", "2", "3"...)
+}
+```
+
+#### Labels Comuns
+
+| Label | Título | Descrição |
+|-------|--------|-----------|
+| `anamnesis` | Anamnese | Histórico e relato do proprietário |
+| `physical_exam` | Exame Físico | Avaliação física e sinais vitais |
+| `diagnosis` | Diagnóstico | Conclusões e diagnósticos |
+| `treatment` | Tratamento | Prescrições e recomendações |
+| `observations` | Observações | Notas adicionais |
+| `follow_up` | Seguimento | Instruções de retorno |
+
+#### Exemplo
+```json
+{
+  "id": "9b7d8b6a-12e3-45fa-9c1c-7e12f5c4a1b2",
+  "title": "Exame Físico",
+  "label": "physical_exam",
+  "content": "Peso: 28kg. Temperatura: 38.8°C. FC: 90 bpm. FR: 24 mpm. Mucosas rosadas e úmidas.",
+  "order": "2"
+}
+```
+
+### MetadataItem
+
+Par chave-valor para armazenar informações adicionais sobre a nota.
+
+```typescript
+interface MetadataItem {
+  key: string;    // Chave do metadado
+  value: string;  // Valor do metadado
+}
+```
+
+#### Exemplos Comuns
+```json
+[
+  {"key": "procedimento", "value": "consulta de rotina"},
+  {"key": "veterinario", "value": "Dr. João Silva"},
+  {"key": "peso", "value": "12.5kg"},
+  {"key": "temperatura", "value": "38.5°C"},
+  {"key": "observacoes", "value": "animal cooperativo"}
+]
+```
+
+### Pagination
+
+Informações de paginação para endpoints que retornam listas.
+
+```typescript
+interface Pagination {
+  current_page: number;   // Página atual
+  total_pages: number;    // Total de páginas
+  total_items: number;    // Total de itens
+}
+```
+
+#### Exemplo
+```json
+{
+  "current_page": 1,
+  "total_pages": 10,
+  "total_items": 200
+}
+```
+
+### NoteListResponse
+
+Resposta para o endpoint `GET /notes` (listagem).
+
+```typescript
+interface NoteListResponse {
+  pagination: Pagination;  // Informações de paginação
+  notes: Note[];          // Array de notas (sem note_sections)
+}
+```
+
+<Warning>
+  **Importante**: Na listagem, as notas **não incluem** o campo `note_sections`. Para obter as seções, use `GET /notes/{id}`.
+</Warning>
+
+#### Exemplo
+```json
+{
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 5,
+    "total_items": 100
+  },
+  "notes": [
+    {
+      "id": "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3",
+      "name": "Rex",
+      "gender": "male",
+      "audio_name": "rex_visit_20240214.wav",
+      "audio_url": "https://cdn.connectvets.com/audio/6a4fe1de.wav",
+      "transcription_status": "completed",
+      "transcription_url": "https://cdn.connectvets.com/transcripts/6a4fe1de.txt",
+      "external_id": "CLIENTE_123",
+      "metadata": [
+        {"key": "procedimento", "value": "vacina"}
+      ],
+      "created_at": "2024-02-14T18:25:43Z",
+      "updated_at": "2024-02-14T18:30:23Z"
+    }
+  ]
+}
+```
+
+## Enums
+
+### TranscriptionStatus
+
+Status do processamento da transcrição:
+
+```typescript
+type TranscriptionStatus = "pending" | "processing" | "completed" | "failed";
+```
+
+| Valor | Descrição | Comportamento |
+|-------|-----------|---------------|
+| `pending` | Aguardando processamento | Nota criada, mas ainda não iniciou o processamento |
+| `processing` | IA processando o áudio | Transcrição em andamento |
+| `completed` | Transcrição finalizada | Seções disponíveis, arquivo de transcrição pronto |
+| `failed` | Erro no processamento | Problema durante a transcrição |
+
+### Gender
+
+Sexo do paciente:
+
+```typescript
+type Gender = "male" | "female" | "unidentified";
+```
+
+| Valor | Descrição |
+|-------|-----------|
+| `male` | Macho |
+| `female` | Fêmea |
+| `unidentified` | Não identificado (padrão) |
+
+## Formatos de Data
+
+Todas as datas utilizam o formato **ISO 8601** em **UTC**:
+
+```
+YYYY-MM-DDThh:mm:ssZ
+```
+
+### Exemplos
+```json
+{
+  "created_at": "2024-02-14T18:25:43Z",
+  "updated_at": "2024-02-14T18:30:23Z"
+}
+```
+
+### Parsing em Diferentes Linguagens
+
+#### JavaScript
+```javascript
+const createdAt = new Date("2024-02-14T18:25:43Z");
+console.log(createdAt.toLocaleDateString('pt-BR'));
+// Output: 14/02/2024
+```
+
+#### Python
+```python
+from datetime import datetime
+
+created_at = datetime.fromisoformat("2024-02-14T18:25:43Z".replace('Z', '+00:00'))
+print(created_at.strftime("%d/%m/%Y %H:%M"))
+# Output: 14/02/2024 18:25
+```
+
+#### Go
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+)
+
+func main() {
+    t, _ := time.Parse(time.RFC3339, "2024-02-14T18:25:43Z")
+    fmt.Println(t.Format("02/01/2006 15:04"))
+    // Output: 14/02/2024 18:25
+}
+```
+
+## Identificadores UUID
+
+Todos os IDs utilizam o formato **UUID v4** (RFC 4122):
+
+```
+6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3
+```
+
+### Características
+- **Comprimento**: 36 caracteres
+- **Formato**: 8-4-4-4-12 (hexadecimal com hífens)
+- **Geração**: Aleatório/pseudo-aleatório
+- **Unicidade**: Globalmente único
+
+### Validação
+
+#### JavaScript
+```javascript
+function isValidUUID(uuid) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+```
+
+#### Python
+```python
+import uuid
+
+def is_valid_uuid(uuid_string):
+    try:
+        uuid.UUID(uuid_string, version=4)
+        return True
+    except ValueError:
+        return False
+```
+
+## Tratamento de Nulos
+
+### Campos Opcionais
+
+Campos que podem ser `null` ou ausentes:
+
+- `transcription_url` - Disponível apenas quando `transcription_status = "completed"`
+- `external_id` - Sempre opcional
+- `note_sections` - Vazio para status `pending`/`processing`/`failed`
+
+### Exemplo com Valores Nulos
+```json
+{
+  "id": "7b5fe2ef-63d5-5c3c-b41f-5c4fa8e8d9c4",
+  "name": "Luna",
+  "transcription_status": "processing",
+  "transcription_url": null,
+  "external_id": null,
+  "note_sections": []
+}
+```
+
+## Validação de Dados
+
+### Regras de Validação
+
+#### Note (criação)
+- `name`: Obrigatório, 1-100 caracteres
+- `gender`: Opcional, enum válido
+- `external_id`: Opcional, máx 100 caracteres
+- `metadata`: Opcional, array de objetos válidos
+
+#### MetadataItem
+- `key`: Obrigatório, 1-50 caracteres
+- `value`: Obrigatório, 1-500 caracteres
+
+### Exemplo de Validação JavaScript
+```javascript
+function validateNote(note) {
+  const errors = [];
+  
+  if (!note.name || note.name.length === 0) {
+    errors.push("Nome do paciente é obrigatório");
+  }
+  
+  if (note.name && note.name.length > 100) {
+    errors.push("Nome do paciente deve ter no máximo 100 caracteres");
+  }
+  
+  if (note.gender && !["male", "female", "unidentified"].includes(note.gender)) {
+    errors.push("Sexo deve ser male, female ou unidentified");
+  }
+  
+  if (note.metadata) {
+    note.metadata.forEach((item, index) => {
+      if (!item.key) {
+        errors.push(`Metadata[${index}]: chave é obrigatória`);
+      }
+      if (!item.value) {
+        errors.push(`Metadata[${index}]: valor é obrigatório`);
+      }
+    });
+  }
+  
+  return errors;
+}
+```
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card
+    title="Criar Nota"
+    icon="plus"
+    href="/api-reference/notes/create"
+  >
+    Como criar uma nova nota com áudio
+  </Card>
+  <Card
+    title="Listar Notas"
+    icon="list"
+    href="/api-reference/notes/list"
+  >
+    Como buscar e filtrar notas
+  </Card>
+  <Card
+    title="Obter Nota"
+    icon="magnifying-glass"
+    href="/api-reference/notes/get"
+  >
+    Como acessar detalhes de uma nota
+  </Card>
+  <Card
+    title="Conceitos - Notas"
+    icon="book"
+    href="/concepts/notes"
+  >
+    Entenda os conceitos das notas
+  </Card>
+</CardGroup> 

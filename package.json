@@ -1,0 +1,22 @@
+{
+  "name": "connectvets-docs",
+  "version": "1.0.0",
+  "description": "ConnectVets Notes API Documentation",
+  "private": true,
+  "scripts": {
+    "dev": "mintlify dev",
+    "start": "mintlify dev --port 3000",
+    "build": "mintlify build",
+    "preview": "mintlify dev --port 3001"
+  },
+  "devDependencies": {
+    "mintlify": "^4.2.10"
+  },
+  "keywords": [
+    "documentation",
+    "api",
+    "veterinary",
+    "connectvets"
+  ],
+  "license": "MIT"
+}

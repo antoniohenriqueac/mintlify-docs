@@ -1,0 +1,816 @@
+---
+title: 'Webhook Handling'
+description: 'Implementar webhooks para receber notificações automáticas do ConnectVets Notes'
+---
+
+## Visão Geral
+
+Os **webhooks** permitem que sua aplicação receba notificações automáticas quando eventos importantes acontecem no ConnectVets Notes, como conclusão de processamento, falhas ou atualizações de status.
+
+<Info>
+  **Vantagem**: Elimina a necessidade de polling constante e garante resposta imediata aos eventos.
+</Info>
+
+## Eventos Suportados
+
+### Tipos de Eventos
+
+| Evento | Descrição | Quando Ocorre |
+|--------|-----------|---------------|
+| `note.created` | Nova nota criada | Após upload bem-sucedido |
+| `note.processing` | Processamento iniciado | Quando sai da fila |
+| `note.completed` | Processamento concluído | Transcrição e análise prontas |
+| `note.failed` | Processamento falhou | Erro durante processamento |
+| `note.updated` | Nota atualizada | Modificações manuais |
+
+### Estrutura do Payload
+
+```json
+{
+  "id": "evt_1234567890abcdef",
+  "type": "note.completed",
+  "created_at": "2024-02-14T18:25:43Z",
+  "data": {
+    "note": {
+      "id": "note_abc123def456",
+      "status": "completed",
+      "created_at": "2024-02-14T18:20:00Z",
+      "updated_at": "2024-02-14T18:25:43Z",
+      "metadata": {
+        "patient_name": "Rex",
+        "doctor_name": "Dr. Silva",
+        "species": "Canino",
+        "consultation_type": "consulta"
+      },
+      "sections": [
+        {
+          "type": "summary",
+          "content": "Consulta de rotina para cão de 5 anos..."
+        },
+        {
+          "type": "diagnosis", 
+          "content": "Animal saudável, sem alterações..."
+        }
+      ],
+      "transcript": "Transcrição completa da consulta..."
+    }
+  }
+}
+```
+
+## Implementação do Servidor
+
+### Node.js + Express
+
+```javascript
+const express = require('express');
+const crypto = require('crypto');
+const bodyParser = require('body-parser');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware para verificar assinatura do webhook
+app.use('/webhooks/connectvets', bodyParser.raw({ type: 'application/json' }));
+
+// Chave secreta do webhook (configure no dashboard)
+const WEBHOOK_SECRET = process.env.CONNECTVETS_WEBHOOK_SECRET;
+
+class WebhookHandler {
+    constructor() {
+        this.eventHandlers = new Map();
+        this.setupEventHandlers();
+    }
+
+    // Configurar handlers para cada tipo de evento
+    setupEventHandlers() {
+        this.eventHandlers.set('note.created', this.handleNoteCreated.bind(this));
+        this.eventHandlers.set('note.processing', this.handleNoteProcessing.bind(this));
+        this.eventHandlers.set('note.completed', this.handleNoteCompleted.bind(this));
+        this.eventHandlers.set('note.failed', this.handleNoteFailed.bind(this));
+        this.eventHandlers.set('note.updated', this.handleNoteUpdated.bind(this));
+    }
+
+    // Verificar assinatura do webhook
+    verifySignature(payload, signature) {
+        const expectedSignature = crypto
+            .createHmac('sha256', WEBHOOK_SECRET)
+            .update(payload)
+            .digest('hex');
+        
+        const receivedSignature = signature.replace('sha256=', '');
+        
+        return crypto.timingSafeEqual(
+            Buffer.from(expectedSignature, 'hex'),
+            Buffer.from(receivedSignature, 'hex')
+        );
+    }
+
+    // Processar webhook recebido
+    async processWebhook(req, res) {
+        try {
+            const signature = req.headers['x-connectvets-signature'];
+            const payload = req.body;
+
+            // Verificar assinatura
+            if (!this.verifySignature(payload, signature)) {
+                console.error('❌ Assinatura inválida do webhook');
+                return res.status(401).send('Unauthorized');
+            }
+
+            // Parse do payload
+            const event = JSON.parse(payload.toString());
+            
+            console.log(`🔔 Webhook recebido: ${event.type} (${event.id})`);
+
+            // Processar evento
+            const handler = this.eventHandlers.get(event.type);
+            if (handler) {
+                await handler(event);
+            } else {
+                console.warn(`⚠️ Evento não tratado: ${event.type}`);
+            }
+
+            // Resposta de sucesso
+            res.status(200).send('OK');
+
+        } catch (error) {
+            console.error('❌ Erro ao processar webhook:', error);
+            res.status(500).send('Internal Server Error');
+        }
+    }
+
+    // Handler: Nota criada
+    async handleNoteCreated(event) {
+        const note = event.data.note;
+        
+        console.log(`📝 Nova nota criada: ${note.id}`);
+        console.log(`👤 Paciente: ${note.metadata.patient_name}`);
+        console.log(`👨‍⚕️ Veterinário: ${note.metadata.doctor_name}`);
+
+        // Integrar com seu sistema
+        await this.createPatientRecord(note);
+        await this.notifyVeterinarian(note, 'created');
+        
+        // Registrar no banco de dados
+        await this.saveWebhookEvent(event);
+    }
+
+    // Handler: Processamento iniciado
+    async handleNoteProcessing(event) {
+        const note = event.data.note;
+        
+        console.log(`🔄 Processamento iniciado: ${note.id}`);
+        
+        // Atualizar status na interface
+        await this.updateNoteStatus(note.id, 'processing');
+        
+        // Notificar usuário sobre início do processamento
+        await this.notifyUser(note.metadata.doctor_name, 
+            `Processamento da consulta de ${note.metadata.patient_name} iniciado`);
+    }
+
+    // Handler: Processamento concluído
+    async handleNoteCompleted(event) {
+        const note = event.data.note;
+        
+        console.log(`✅ Processamento concluído: ${note.id}`);
+        console.log(`📋 Seções geradas: ${note.sections.length}`);
+
+        // Extrair informações estruturadas
+        const summary = note.sections.find(s => s.type === 'summary')?.content;
+        const diagnosis = note.sections.find(s => s.type === 'diagnosis')?.content;
+        const treatment = note.sections.find(s => s.type === 'treatment')?.content;
+
+        // Atualizar prontuário do paciente
+        await this.updatePatientRecord(note.id, {
+            summary,
+            diagnosis,
+            treatment,
+            full_transcript: note.transcript,
+            consultation_date: note.created_at
+        });
+
+        // Notificar veterinário
+        await this.notifyVeterinarian(note, 'completed');
+        
+        // Enviar por email se configurado
+        await this.sendCompletionEmail(note);
+        
+        // Atualizar dashboard em tempo real
+        await this.broadcastToWebSockets('note_completed', note);
+    }
+
+    // Handler: Processamento falhou
+    async handleNoteFailed(event) {
+        const note = event.data.note;
+        
+        console.error(`❌ Processamento falhou: ${note.id}`);
+        console.error(`💬 Erro: ${note.error_message}`);
+
+        // Registrar erro
+        await this.logProcessingError(note);
+        
+        // Notificar administrador
+        await this.notifyAdmin(note, 'failed');
+        
+        // Marcar para reprocessamento manual se necessário
+        if (this.canRetryProcessing(note)) {
+            await this.scheduleRetry(note.id);
+        }
+    }
+
+    // Handler: Nota atualizada
+    async handleNoteUpdated(event) {
+        const note = event.data.note;
+        
+        console.log(`📝 Nota atualizada: ${note.id}`);
+        
+        // Sincronizar alterações
+        await this.syncNoteUpdates(note);
+        
+        // Notificar sobre alterações
+        await this.notifyAboutUpdates(note);
+    }
+
+    // Integração com sistema interno
+    async createPatientRecord(note) {
+        // Implementar criação/atualização do prontuário
+        console.log('💾 Criando/atualizando prontuário...');
+        
+        const patientData = {
+            name: note.metadata.patient_name,
+            species: note.metadata.species,
+            last_consultation: note.created_at,
+            veterinarian: note.metadata.doctor_name,
+            connectvets_note_id: note.id
+        };
+        
+        // Salvar no seu banco de dados
+        // await YourDatabase.savePatient(patientData);
+    }
+
+    async updatePatientRecord(noteId, consultationData) {
+        console.log('📝 Atualizando prontuário com resultados...');
+        
+        // Atualizar consulta no banco
+        // await YourDatabase.updateConsultation(noteId, consultationData);
+    }
+
+    // Notificações
+    async notifyVeterinarian(note, eventType) {
+        const messages = {
+            created: `📋 Nova consulta de ${note.metadata.patient_name} foi enviada para processamento`,
+            completed: `✅ Análise da consulta de ${note.metadata.patient_name} está pronta`
+        };
+        
+        const message = messages[eventType];
+        if (message) {
+            // Enviar notificação push, email, SMS, etc.
+            console.log(`📱 Notificando ${note.metadata.doctor_name}: ${message}`);
+            
+            // Implementar notificação real
+            // await this.sendPushNotification(note.metadata.doctor_name, message);
+        }
+    }
+
+    async sendCompletionEmail(note) {
+        const emailData = {
+            to: this.getVeterinarianEmail(note.metadata.doctor_name),
+            subject: `Análise da consulta de ${note.metadata.patient_name} concluída`,
+            template: 'consultation_completed',
+            data: {
+                patientName: note.metadata.patient_name,
+                doctorName: note.metadata.doctor_name,
+                consultationDate: new Date(note.created_at).toLocaleDateString('pt-BR'),
+                noteId: note.id,
+                summary: note.sections.find(s => s.type === 'summary')?.content
+            }
+        };
+        
+        // Enviar email
+        // await this.emailService.send(emailData);
+        console.log(`📧 Email de conclusão enviado para ${emailData.to}`);
+    }
+
+    // WebSocket para updates em tempo real
+    async broadcastToWebSockets(event, data) {
+        // Implementar broadcast WebSocket
+        console.log(`🔄 Broadcasting ${event} para clientes conectados`);
+        
+        // this.wss.clients.forEach(client => {
+        //     if (client.readyState === WebSocket.OPEN) {
+        //         client.send(JSON.stringify({ event, data }));
+        //     }
+        // });
+    }
+
+    // Helpers
+    getVeterinarianEmail(doctorName) {
+        // Buscar email do veterinário no banco
+        return 'veterinario@clinica.com';
+    }
+
+    canRetryProcessing(note) {
+        // Verificar se o erro permite retry
+        const retryableErrors = ['temporary_error', 'service_unavailable'];
+        return retryableErrors.includes(note.error_code);
+    }
+
+    async scheduleRetry(noteId) {
+        // Agendar reprocessamento
+        console.log(`🔄 Agendando retry para nota: ${noteId}`);
+        // Implementar sistema de retry
+    }
+
+    async saveWebhookEvent(event) {
+        // Salvar evento para auditoria
+        console.log(`💾 Salvando evento webhook: ${event.id}`);
+        // await YourDatabase.saveWebhookEvent(event);
+    }
+}
+
+// Inicializar handler
+const webhookHandler = new WebhookHandler();
+
+// Rota do webhook
+app.post('/webhooks/connectvets', (req, res) => {
+    webhookHandler.processWebhook(req, res);
+});
+
+// Rota de saúde
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor webhook rodando na porta ${PORT}`);
+    console.log(`📡 Endpoint: http://localhost:${PORT}/webhooks/connectvets`);
+});
+
+module.exports = { WebhookHandler };
+```
+
+### Python + Flask
+
+```python
+from flask import Flask, request, jsonify
+import hmac
+import hashlib
+import json
+import logging
+from datetime import datetime
+
+app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+
+# Configuração
+WEBHOOK_SECRET = 'sua_chave_secreta_aqui'
+
+class WebhookHandler:
+    def __init__(self):
+        self.event_handlers = {
+            'note.created': self.handle_note_created,
+            'note.processing': self.handle_note_processing,
+            'note.completed': self.handle_note_completed,
+            'note.failed': self.handle_note_failed,
+            'note.updated': self.handle_note_updated
+        }
+    
+    def verify_signature(self, payload, signature):
+        """Verificar assinatura do webhook"""
+        expected_signature = hmac.new(
+            WEBHOOK_SECRET.encode('utf-8'),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+        
+        received_signature = signature.replace('sha256=', '')
+        return hmac.compare_digest(expected_signature, received_signature)
+    
+    def process_webhook(self, request):
+        """Processar webhook recebido"""
+        try:
+            signature = request.headers.get('X-ConnectVets-Signature')
+            payload = request.get_data()
+            
+            # Verificar assinatura
+            if not self.verify_signature(payload, signature):
+                logging.error('❌ Assinatura inválida do webhook')
+                return {'error': 'Unauthorized'}, 401
+            
+            # Parse do evento
+            event = json.loads(payload.decode('utf-8'))
+            logging.info(f"🔔 Webhook recebido: {event['type']} ({event['id']})")
+            
+            # Processar evento
+            handler = self.event_handlers.get(event['type'])
+            if handler:
+                handler(event)
+            else:
+                logging.warning(f"⚠️ Evento não tratado: {event['type']}")
+            
+            return {'status': 'success'}, 200
+            
+        except Exception as e:
+            logging.error(f"❌ Erro ao processar webhook: {str(e)}")
+            return {'error': 'Internal Server Error'}, 500
+    
+    def handle_note_created(self, event):
+        """Handler para nota criada"""
+        note = event['data']['note']
+        logging.info(f"📝 Nova nota criada: {note['id']}")
+        
+        # Implementar lógica específica
+        self.create_patient_record(note)
+        self.notify_veterinarian(note, 'created')
+    
+    def handle_note_completed(self, event):
+        """Handler para processamento concluído"""
+        note = event['data']['note']
+        logging.info(f"✅ Processamento concluído: {note['id']}")
+        
+        # Extrair seções
+        sections = {s['type']: s['content'] for s in note.get('sections', [])}
+        
+        # Atualizar prontuário
+        self.update_patient_record(note['id'], {
+            'summary': sections.get('summary'),
+            'diagnosis': sections.get('diagnosis'),
+            'treatment': sections.get('treatment'),
+            'transcript': note.get('transcript')
+        })
+        
+        # Notificar veterinário
+        self.notify_veterinarian(note, 'completed')
+    
+    def handle_note_failed(self, event):
+        """Handler para processamento falhou"""
+        note = event['data']['note']
+        logging.error(f"❌ Processamento falhou: {note['id']}")
+        
+        # Registrar erro e notificar admin
+        self.log_processing_error(note)
+        self.notify_admin(note)
+    
+    def handle_note_processing(self, event):
+        """Handler para processamento iniciado"""
+        note = event['data']['note']
+        logging.info(f"🔄 Processamento iniciado: {note['id']}")
+        
+        self.update_note_status(note['id'], 'processing')
+    
+    def handle_note_updated(self, event):
+        """Handler para nota atualizada"""
+        note = event['data']['note']
+        logging.info(f"📝 Nota atualizada: {note['id']}")
+        
+        self.sync_note_updates(note)
+    
+    # Métodos de integração (implementar conforme necessário)
+    def create_patient_record(self, note):
+        logging.info("💾 Criando prontuário do paciente")
+        # Implementar integração com banco de dados
+    
+    def update_patient_record(self, note_id, data):
+        logging.info("📝 Atualizando prontuário")
+        # Implementar atualização do prontuário
+    
+    def notify_veterinarian(self, note, event_type):
+        logging.info(f"📱 Notificando veterinário: {event_type}")
+        # Implementar notificação (email, push, SMS)
+    
+    def log_processing_error(self, note):
+        logging.error(f"📋 Registrando erro de processamento: {note['id']}")
+        # Implementar log de erros
+    
+    def notify_admin(self, note):
+        logging.info("🚨 Notificando administrador sobre erro")
+        # Implementar notificação de erro para admin
+
+# Inicializar handler
+webhook_handler = WebhookHandler()
+
+@app.route('/webhooks/connectvets', methods=['POST'])
+def webhook_endpoint():
+    """Endpoint do webhook"""
+    return webhook_handler.process_webhook(request)
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Check de saúde"""
+    return jsonify({
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat()
+    })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+```
+
+## Configuração dos Webhooks
+
+### 1. Registrar Webhook via API
+
+```javascript
+async function registerWebhook() {
+    const webhookData = {
+        url: 'https://meuapp.com/webhooks/connectvets',
+        events: [
+            'note.created',
+            'note.completed', 
+            'note.failed'
+        ],
+        secret: 'minha_chave_secreta_super_segura',
+        active: true,
+        description: 'Webhook principal do sistema veterinário'
+    };
+
+    try {
+        const response = await fetch('https://api.connectvets.com/webhooks', {
+            method: 'POST',
+            headers: {
+                'X-API-KEY': 'sua_api_key',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(webhookData)
+        });
+
+        if (response.ok) {
+            const webhook = await response.json();
+            console.log('✅ Webhook registrado:', webhook.id);
+            return webhook;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao registrar webhook:', error);
+    }
+}
+```
+
+### 2. Gerenciar Webhooks
+
+```javascript
+class WebhookManager {
+    constructor(apiKey) {
+        this.apiKey = apiKey;
+        this.baseUrl = 'https://api.connectvets.com';
+    }
+
+    // Listar webhooks
+    async listWebhooks() {
+        const response = await this.request('/webhooks');
+        return response.data;
+    }
+
+    // Obter webhook específico
+    async getWebhook(webhookId) {
+        return this.request(`/webhooks/${webhookId}`);
+    }
+
+    // Atualizar webhook
+    async updateWebhook(webhookId, updates) {
+        return this.request(`/webhooks/${webhookId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updates)
+        });
+    }
+
+    // Deletar webhook
+    async deleteWebhook(webhookId) {
+        return this.request(`/webhooks/${webhookId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    // Testar webhook
+    async testWebhook(webhookId, eventType = 'note.completed') {
+        return this.request(`/webhooks/${webhookId}/test`, {
+            method: 'POST',
+            body: JSON.stringify({ event_type: eventType })
+        });
+    }
+
+    // Reenviar evento
+    async retryEvent(eventId) {
+        return this.request(`/webhook-events/${eventId}/retry`, {
+            method: 'POST'
+        });
+    }
+
+    async request(endpoint, options = {}) {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            ...options,
+            headers: {
+                'X-API-KEY': this.apiKey,
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+
+        return response.json();
+    }
+}
+```
+
+## Monitoramento e Debug
+
+### Dashboard de Webhooks
+
+```javascript
+class WebhookDashboard {
+    constructor() {
+        this.events = [];
+        this.stats = {
+            total: 0,
+            successful: 0,
+            failed: 0,
+            lastEvent: null
+        };
+    }
+
+    // Registrar evento webhook
+    logEvent(event, status, responseTime) {
+        const logEntry = {
+            id: event.id,
+            type: event.type,
+            timestamp: new Date(event.created_at),
+            status: status, // 'success', 'failed', 'timeout'
+            responseTime: responseTime,
+            noteId: event.data.note?.id
+        };
+
+        this.events.unshift(logEntry);
+        
+        // Manter apenas últimos 1000 eventos
+        if (this.events.length > 1000) {
+            this.events = this.events.slice(0, 1000);
+        }
+
+        this.updateStats();
+        this.renderDashboard();
+    }
+
+    updateStats() {
+        this.stats.total = this.events.length;
+        this.stats.successful = this.events.filter(e => e.status === 'success').length;
+        this.stats.failed = this.events.filter(e => e.status === 'failed').length;
+        this.stats.lastEvent = this.events[0]?.timestamp;
+        
+        // Taxa de sucesso
+        this.stats.successRate = this.stats.total > 0 
+            ? (this.stats.successful / this.stats.total * 100).toFixed(1)
+            : 0;
+    }
+
+    renderDashboard() {
+        const dashboard = document.getElementById('webhook-dashboard');
+        if (!dashboard) return;
+
+        dashboard.innerHTML = `
+            <div class="webhook-stats">
+                <div class="stat-card">
+                    <h3>📊 Total de Eventos</h3>
+                    <p class="stat-number">${this.stats.total}</p>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>✅ Taxa de Sucesso</h3>
+                    <p class="stat-number">${this.stats.successRate}%</p>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>❌ Falhas</h3>
+                    <p class="stat-number">${this.stats.failed}</p>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>🕐 Último Evento</h3>
+                    <p class="stat-text">${this.stats.lastEvent ? 
+                        this.stats.lastEvent.toLocaleString('pt-BR') : 'Nenhum'}</p>
+                </div>
+            </div>
+            
+            <div class="webhook-events">
+                <h3>📋 Eventos Recentes</h3>
+                <div class="events-list">
+                    ${this.events.slice(0, 20).map(event => `
+                        <div class="event-item ${event.status}">
+                            <span class="event-type">${event.type}</span>
+                            <span class="event-time">${event.timestamp.toLocaleTimeString('pt-BR')}</span>
+                            <span class="event-status">${this.getStatusIcon(event.status)}</span>
+                            <span class="event-response-time">${event.responseTime}ms</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    getStatusIcon(status) {
+        const icons = {
+            'success': '✅',
+            'failed': '❌',
+            'timeout': '⏱️'
+        };
+        return icons[status] || '❓';
+    }
+}
+
+// Inicializar dashboard
+const webhookDashboard = new WebhookDashboard();
+```
+
+## Melhores Práticas
+
+### Segurança
+- ✅ **Sempre verificar assinatura** dos webhooks
+- ✅ **Usar HTTPS** em produção
+- ✅ **Rotacionar secrets** periodicamente
+- ✅ **Validar payload** antes de processar
+
+### Performance
+- ✅ **Processar eventos de forma assíncrona**
+- ✅ **Implementar timeout** adequado
+- ✅ **Usar queue** para eventos pesados
+- ✅ **Responder rapidamente** (< 5 segundos)
+
+### Confiabilidade
+- ✅ **Implementar retry** automático
+- ✅ **Log de todos os eventos**
+- ✅ **Monitoramento ativo**
+- ✅ **Alertas para falhas consecutivas**
+
+### Código Defensivo
+
+```javascript
+class RobustWebhookHandler {
+    async processWebhook(req, res) {
+        const startTime = Date.now();
+        
+        try {
+            // Timeout de 30 segundos
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), 30000));
+            
+            const processingPromise = this.handleEventSafely(req);
+            
+            await Promise.race([processingPromise, timeoutPromise]);
+            
+            const responseTime = Date.now() - startTime;
+            this.logSuccess(req, responseTime);
+            
+            res.status(200).send('OK');
+            
+        } catch (error) {
+            const responseTime = Date.now() - startTime;
+            this.logError(req, error, responseTime);
+            
+            // Sempre responder com sucesso para evitar retry desnecessário
+            res.status(200).send('Error logged');
+        }
+    }
+    
+    async handleEventSafely(req) {
+        // Implementar com try-catch interno
+        // Nunca deixar erro não capturado
+    }
+}
+```
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card
+    title="Integração Básica"
+    icon="play"
+    href="/examples/basic-integration"
+  >
+    Voltar ao exemplo básico
+  </Card>
+  <Card
+    title="Filtros Avançados"
+    icon="filter"
+    href="/examples/advanced-filtering"
+  >
+    Sistema de busca inteligente
+  </Card>
+  <Card
+    title="Error Handling"
+    icon="alert-triangle"
+    href="/integration/error-handling"
+  >
+    Estratégias robustas de recovery
+  </Card>
+  <Card
+    title="API Reference"
+    icon="book"
+    href="/api-reference/overview"
+  >
+    Documentação completa da API
+  </Card>
+</CardGroup> 

@@ -1,0 +1,600 @@
+---
+title: "Listar Notes"
+api: "GET https://api.connectvets.com.br/notes"
+description: "Busque e filtre notas com paginação e filtros avançados"
+---
+
+## Descrição
+
+Retorna uma lista paginada de notas do tenant/clínica associado à sua API Key. Suporta filtros avançados para buscar notas específicas.
+
+## Parâmetros da Requisição
+
+### Headers
+
+| Header | Obrigatório | Valor |
+|--------|-------------|--------|
+| `X-API-KEY` | ✅ Sim | Sua chave de API |
+
+### Query Parameters
+
+| Parâmetro | Tipo | Obrigatório | Descrição | Exemplo |
+|-----------|------|-------------|-----------|---------|
+| `external_id` | String | ❌ Não | Filtrar por ID externo | `CLIENTE_123` |
+| `transcription_status` | Enum | ❌ Não | Status da transcrição | `completed` |
+| `valid` | Boolean | ❌ Não | Filtrar notas válidas/inválidas | `true` |
+| `name` | String | ❌ Não | Nome do paciente (busca parcial) | `rex` |
+| `from` | Date | ❌ Não | Data inicial (YYYY-MM-DD) | `2024-01-01` |
+| `to` | Date | ❌ Não | Data final (YYYY-MM-DD) | `2024-01-31` |
+| `page` | Integer | ❌ Não | Número da página (padrão: 1) | `2` |
+| `per_page` | Integer | ❌ Não | Itens por página (padrão: 20, máx: 100) | `50` |
+
+### Valores de transcription_status
+
+| Status | Descrição |
+|--------|-----------|
+| `pending` | Aguardando processamento |
+| `processing` | Em processamento pela IA |
+| `completed` | Transcrição finalizada |
+| `failed` | Erro no processamento |
+
+## Exemplos de Requisição
+
+### Listar todas as notas (básico)
+
+```bash
+curl -H "X-API-KEY: cvn_live_abc123def456..." \
+  https://api.connectvets.com/notes
+```
+
+### Filtrar por status completado
+
+```bash
+curl -H "X-API-KEY: cvn_live_abc123def456..." \
+  "https://api.connectvets.com/notes?transcription_status=completed"
+```
+
+### Buscar por nome do paciente
+
+```bash
+curl -H "X-API-KEY: cvn_live_abc123def456..." \
+  "https://api.connectvets.com/notes?name=rex"
+```
+
+### Filtrar por período
+
+```bash
+curl -H "X-API-KEY: cvn_live_abc123def456..." \
+  "https://api.connectvets.com/notes?from=2024-01-01&to=2024-01-31"
+```
+
+### Filtros combinados com paginação
+
+```bash
+curl -H "X-API-KEY: cvn_live_abc123def456..." \
+  "https://api.connectvets.com/notes?transcription_status=completed&from=2024-01-01&page=2&per_page=50"
+```
+
+### JavaScript/TypeScript
+
+```javascript
+// Função básica de listagem
+async function listNotes(filters = {}) {
+  const params = new URLSearchParams();
+  
+  // Adicionar filtros
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      params.append(key, value);
+    }
+  });
+  
+  const url = `https://api.connectvets.com/notes${params.toString() ? '?' + params.toString() : ''}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'X-API-KEY': 'cvn_live_abc123def456...'
+    }
+  });
+  
+  return response.json();
+}
+
+// Exemplos de uso
+const allNotes = await listNotes();
+
+const completedNotes = await listNotes({
+  transcription_status: 'completed'
+});
+
+const monthlyNotes = await listNotes({
+  from: '2024-01-01',
+  to: '2024-01-31',
+  page: 1,
+  per_page: 50
+});
+
+const patientNotes = await listNotes({
+  name: 'rex',
+  transcription_status: 'completed'
+});
+```
+
+### Python
+
+```python
+import requests
+from datetime import datetime, timedelta
+
+def list_notes(api_key, **filters):
+    url = "https://api.connectvets.com/notes"
+    headers = {"X-API-KEY": api_key}
+    
+    # Remover valores None
+    params = {k: v for k, v in filters.items() if v is not None}
+    
+    response = requests.get(url, headers=headers, params=params)
+    return response.json()
+
+# Exemplos de uso
+api_key = "cvn_live_abc123def456..."
+
+# Todas as notas
+all_notes = list_notes(api_key)
+
+# Notas completadas
+completed = list_notes(
+    api_key,
+    transcription_status="completed"
+)
+
+# Notas do último mês
+last_month = datetime.now() - timedelta(days=30)
+recent_notes = list_notes(
+    api_key,
+    from_date=last_month.strftime("%Y-%m-%d"),
+    to_date=datetime.now().strftime("%Y-%m-%d")
+)
+
+# Busca específica
+search_results = list_notes(
+    api_key,
+    name="rex",
+    external_id="CLIENTE_123"
+)
+```
+
+### Go
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "net/url"
+)
+
+type NotesFilter struct {
+    ExternalID          string `json:"external_id,omitempty"`
+    TranscriptionStatus string `json:"transcription_status,omitempty"`
+    Valid               *bool  `json:"valid,omitempty"`
+    Name                string `json:"name,omitempty"`
+    From                string `json:"from,omitempty"`
+    To                  string `json:"to,omitempty"`
+    Page                int    `json:"page,omitempty"`
+    PerPage             int    `json:"per_page,omitempty"`
+}
+
+func listNotes(apiKey string, filters NotesFilter) (*NotesListResponse, error) {
+    baseURL := "https://api.connectvets.com/notes"
+    
+    // Construir query parameters
+    params := url.Values{}
+    if filters.ExternalID != "" {
+        params.Add("external_id", filters.ExternalID)
+    }
+    if filters.TranscriptionStatus != "" {
+        params.Add("transcription_status", filters.TranscriptionStatus)
+    }
+    if filters.Name != "" {
+        params.Add("name", filters.Name)
+    }
+    if filters.From != "" {
+        params.Add("from", filters.From)
+    }
+    if filters.To != "" {
+        params.Add("to", filters.To)
+    }
+    if filters.Page > 0 {
+        params.Add("page", fmt.Sprintf("%d", filters.Page))
+    }
+    if filters.PerPage > 0 {
+        params.Add("per_page", fmt.Sprintf("%d", filters.PerPage))
+    }
+    
+    url := baseURL
+    if len(params) > 0 {
+        url += "?" + params.Encode()
+    }
+    
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return nil, err
+    }
+    
+    req.Header.Set("X-API-KEY", apiKey)
+    
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+    
+    var result NotesListResponse
+    err = json.NewDecoder(resp.Body).Decode(&result)
+    return &result, err
+}
+```
+
+## Resposta de Sucesso (200 OK)
+
+```json
+{
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 10,
+    "total_items": 200
+  },
+  "notes": [
+    {
+      "id": "6a4fe1de-52c4-4b2b-a30f-4b3fa9d7d8b3",
+      "name": "Rex",
+      "gender": "male",
+      "audio_name": "rex_visit_20240214.wav",
+      "audio_url": "https://cdn.connectvets.com/audio/6a4fe1de.wav",
+      "transcription_status": "completed",
+      "transcription_url": "https://cdn.connectvets.com/transcripts/6a4fe1de.txt",
+      "external_id": "CLIENTE_123",
+      "metadata": [
+        {"key": "procedimento", "value": "vacina"},
+        {"key": "veterinario", "value": "Dr. João Silva"}
+      ],
+      "created_at": "2024-02-14T18:25:43Z",
+      "updated_at": "2024-02-14T18:30:23Z"
+    },
+    {
+      "id": "7b5fe2ef-63d5-5c3c-b41f-5c4fa8e8d9c4",
+      "name": "Luna",
+      "gender": "female",
+      "audio_name": "luna_consulta_20240215.wav",
+      "audio_url": "https://cdn.connectvets.com/audio/7b5fe2ef.wav",
+      "transcription_status": "processing",
+      "transcription_url": null,
+      "external_id": "CLIENTE_456",
+      "metadata": [
+        {"key": "procedimento", "value": "consulta de rotina"}
+      ],
+      "created_at": "2024-02-15T09:15:22Z",
+      "updated_at": "2024-02-15T09:16:10Z"
+    }
+  ]
+}
+```
+
+### Estrutura da Resposta
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `pagination` | Object | Informações de paginação |
+| `pagination.current_page` | Integer | Página atual |
+| `pagination.total_pages` | Integer | Total de páginas |
+| `pagination.total_items` | Integer | Total de itens |
+| `notes` | Array | Lista de notas |
+
+<Warning>
+  **Importante**: O campo `note_sections` **não é incluído** na listagem. Para obter as seções, use o endpoint `GET /notes/{id}`
+</Warning>
+
+## Paginação
+
+### Navegação entre Páginas
+
+```javascript
+// Função para navegar pelas páginas
+async function getAllNotes(filters = {}) {
+  let allNotes = [];
+  let currentPage = 1;
+  let totalPages = 1;
+  
+  do {
+    const response = await listNotes({
+      ...filters,
+      page: currentPage,
+      per_page: 100 // máximo por página
+    });
+    
+    allNotes = allNotes.concat(response.notes);
+    currentPage++;
+    totalPages = response.pagination.total_pages;
+    
+  } while (currentPage <= totalPages);
+  
+  return allNotes;
+}
+```
+
+### Controle de Paginação
+
+```javascript
+// Hook React para paginação
+function useNotesPagination(filters = {}) {
+  const [notes, setNotes] = useState([]);
+  const [pagination, setPagination] = useState({});
+  const [loading, setLoading] = useState(false);
+  
+  const loadPage = async (page = 1) => {
+    setLoading(true);
+    try {
+      const response = await listNotes({
+        ...filters,
+        page,
+        per_page: 20
+      });
+      
+      setNotes(response.notes);
+      setPagination(response.pagination);
+    } catch (error) {
+      console.error('Erro ao carregar notas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return { notes, pagination, loading, loadPage };
+}
+```
+
+## Filtros Avançados
+
+### Busca por Texto
+
+```javascript
+// Busca inteligente no nome do paciente
+async function searchPatients(query) {
+  return listNotes({
+    name: query.toLowerCase(),
+    transcription_status: 'completed'
+  });
+}
+
+// Busca por ID externo
+async function findByExternalId(externalId) {
+  const response = await listNotes({
+    external_id: externalId
+  });
+  
+  return response.notes.length > 0 ? response.notes[0] : null;
+}
+```
+
+### Filtros por Data
+
+```javascript
+// Notas de hoje
+async function getTodayNotes() {
+  const today = new Date().toISOString().split('T')[0];
+  return listNotes({
+    from: today,
+    to: today
+  });
+}
+
+// Notas da última semana
+async function getWeeklyNotes() {
+  const today = new Date();
+  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  
+  return listNotes({
+    from: weekAgo.toISOString().split('T')[0],
+    to: today.toISOString().split('T')[0]
+  });
+}
+
+// Notas por período customizado
+async function getNotesInPeriod(startDate, endDate) {
+  return listNotes({
+    from: startDate,
+    to: endDate,
+    transcription_status: 'completed'
+  });
+}
+```
+
+### Filtros por Status
+
+```javascript
+// Notas pendentes de processamento
+async function getPendingNotes() {
+  return listNotes({
+    transcription_status: 'pending'
+  });
+}
+
+// Notas com erro
+async function getFailedNotes() {
+  return listNotes({
+    transcription_status: 'failed'
+  });
+}
+
+// Notas em processamento
+async function getProcessingNotes() {
+  return listNotes({
+    transcription_status: 'processing'
+  });
+}
+```
+
+## Casos de Uso Comuns
+
+### Dashboard/Relatórios
+
+```javascript
+// Estatísticas do painel
+async function getDashboardStats() {
+  const [total, completed, pending, failed] = await Promise.all([
+    listNotes({ per_page: 1 }), // para pegar total_items
+    listNotes({ transcription_status: 'completed', per_page: 1 }),
+    listNotes({ transcription_status: 'pending', per_page: 1 }),
+    listNotes({ transcription_status: 'failed', per_page: 1 })
+  ]);
+  
+  return {
+    total: total.pagination.total_items,
+    completed: completed.pagination.total_items,
+    pending: pending.pagination.total_items,
+    failed: failed.pagination.total_items
+  };
+}
+```
+
+### Sincronização
+
+```javascript
+// Sincronizar notas modificadas desde última consulta
+async function syncNotesSince(lastSyncDate) {
+  const response = await listNotes({
+    from: lastSyncDate,
+    per_page: 100
+  });
+  
+  // Processar notas atualizadas
+  for (const note of response.notes) {
+    await updateLocalNote(note);
+  }
+  
+  return response.notes;
+}
+```
+
+### Busca de Paciente
+
+```javascript
+// Buscar histórico de um paciente
+async function getPatientHistory(patientName) {
+  const response = await listNotes({
+    name: patientName,
+    transcription_status: 'completed'
+  });
+  
+  // Ordenar por data mais recente
+  return response.notes.sort((a, b) => 
+    new Date(b.created_at) - new Date(a.created_at)
+  );
+}
+```
+
+## Tratamento de Erros
+
+### Códigos de Status
+
+| Status | Descrição | Ação |
+|--------|-----------|-------|
+| `200` | Sucesso | Processar resultados |
+| `400` | Parâmetros inválidos | Verificar filtros |
+| `401` | API Key inválida | Verificar autenticação |
+| `429` | Rate limit excedido | Aguardar e tentar novamente |
+
+### Exemplo de Tratamento
+
+```javascript
+async function safeListNotes(filters = {}) {
+  try {
+    const response = await fetch(url, { headers });
+    
+    if (!response.ok) {
+      switch (response.status) {
+        case 400:
+          throw new Error('Filtros inválidos');
+        case 401:
+          throw new Error('API Key inválida');
+        case 429:
+          throw new Error('Muitas requisições. Tente em alguns minutos.');
+        default:
+          throw new Error(`Erro ${response.status}: ${response.statusText}`);
+      }
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao listar notas:', error);
+    throw error;
+  }
+}
+```
+
+## Performance e Melhores Práticas
+
+### 🚀 Otimização
+
+- **Use paginação**: Não carregue todas as notas de uma vez
+- **Filtros específicos**: Reduza o volume de dados
+- **Cache inteligente**: Cache resultados frequentes
+- **Polling eficiente**: Use webhooks ao invés de polling constante
+
+### 📊 Monitoramento
+
+```javascript
+// Monitorar status das notas
+async function monitorNoteStatus() {
+  const processing = await listNotes({
+    transcription_status: 'processing'
+  });
+  
+  console.log(`${processing.pagination.total_items} notas em processamento`);
+  
+  const failed = await listNotes({
+    transcription_status: 'failed'
+  });
+  
+  if (failed.pagination.total_items > 0) {
+    console.warn(`${failed.pagination.total_items} notas falharam`);
+  }
+}
+```
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card
+    title="Obter Nota por ID"
+    icon="magnifying-glass"
+    href="/api-reference/notes/get"
+  >
+    Acesse detalhes completos e seções da nota
+  </Card>
+  <Card
+    title="Criar Nova Nota"
+    icon="plus"
+    href="/api-reference/notes/create"
+  >
+    Envie áudio para transcrição
+  </Card>
+  <Card
+    title="Filtros Avançados"
+    icon="filter"
+    href="/examples/advanced-filtering"
+  >
+    Exemplos complexos de busca
+  </Card>
+  <Card
+    title="Conceitos - Notas"
+    icon="book"
+    href="/concepts/notes"
+  >
+    Entenda como funcionam as notas
+  </Card>
+</CardGroup> 

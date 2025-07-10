@@ -201,159 +201,167 @@ func main() {
 ```
 </CodeGroup>
 
-## Passo 4: Acompanhe o processamento
+## Passo 4: Monitore o processamento
 
-Após enviar o áudio, você receberá uma resposta com o ID da nota:
-
-```json
-{
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "Rex",
-    "transcription_status": "pending",
-    "created_at": "2024-02-14T18:25:43Z"
-  },
-  "status": "success"
-}
-```
-
-### Verificar Status
-
-Use o ID da nota para acompanhar o progresso:
+O processamento do áudio é assíncrono. Use o ID retornado para verificar o status:
 
 <CodeGroup>
 ```bash cURL
-curl -X GET "https://api.connectvets.com.br/v1/notes/550e8400-e29b-41d4-a716-446655440000" \
+# Substitua {note_id} pelo ID retornado no passo anterior
+curl -X GET "https://api.connectvets.com.br/v1/notes/{note_id}" \
   -H "X-API-KEY: your_api_key_here"
 ```
 
 ```javascript JavaScript
-const noteId = "550e8400-e29b-41d4-a716-446655440000";
-
-const response = await fetch(`https://api.connectvets.com.br/v1/notes/${noteId}`, {
-  headers: {
-    'X-API-KEY': 'your_api_key_here'
+async function checkStatus(noteId) {
+  const response = await fetch(`https://api.connectvets.com.br/v1/notes/${noteId}`, {
+    headers: {
+      'X-API-KEY': 'your_api_key_here'
+    }
+  });
+  
+  const note = await response.json();
+  console.log('Status:', note.data.status);
+  
+  if (note.data.status === 'completed') {
+    console.log('Transcrição:', note.data.transcription);
+    console.log('Análise:', note.data.analysis);
   }
-});
-
-const note = await response.json();
-console.log('Status:', note.data.transcription_status);
-```
-
-```python Python
-import requests
-
-note_id = "550e8400-e29b-41d4-a716-446655440000"
-
-response = requests.get(
-    f'https://api.connectvets.com.br/v1/notes/{note_id}',
-    headers={'X-API-KEY': 'your_api_key_here'}
-)
-
-print(f"Status: {response.json()['data']['transcription_status']}")
-```
-</CodeGroup>
-
-### Estados de Processamento
-
-<CardGroup cols={2}>
-  <Card title="pending" icon="clock">
-    **Aguardando**: Áudio na fila de processamento
-  </Card>
-  <Card title="processing" icon="gear">
-    **Processando**: IA está transcrevendo o áudio
-  </Card>
-  <Card title="completed" icon="check">
-    **Concluído**: Transcrição finalizada e seções estruturadas
-  </Card>
-  <Card title="failed" icon="x">
-    **Falhou**: Erro no processamento - verifique o áudio
-  </Card>
-</CardGroup>
-
-## Passo 5: Obtenha os resultados
-
-Quando o status for `completed`, você pode acessar as seções estruturadas:
-
-```json
-{
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "Rex",
-    "transcription_status": "completed",
-    "note_sections": [
-      {
-        "id": "anamnesis",
-        "title": "Anamnese",
-        "content": "Paciente apresenta histórico de...",
-        "order": 1
-      },
-      {
-        "id": "physical_exam",
-        "title": "Exame Físico",
-        "content": "Peso: 12.5kg, Temperatura: 38.5°C...",
-        "order": 2
-      },
-      {
-        "id": "diagnosis",
-        "title": "Diagnóstico",
-        "content": "Diagnóstico principal: Gastrite...",
-        "order": 3
-      },
-      {
-        "id": "treatment",
-        "title": "Tratamento",
-        "content": "Prescrição: Omeprazol 20mg...",
-        "order": 4
-      }
-    ]
-  }
+  
+  return note.data;
 }
 ```
 
-## Próximos Passos
+```python Python
+import time
 
-🎉 **Parabéns!** Você processou sua primeira nota com sucesso. Agora você pode:
+def wait_for_completion(note_id):
+    headers = {'X-API-KEY': 'your_api_key_here'}
+    
+    while True:
+        response = requests.get(
+            f'https://api.connectvets.com.br/v1/notes/{note_id}',
+            headers=headers
+        )
+        
+        note = response.json()['data']
+        print(f"Status: {note['status']}")
+        
+        if note['status'] == 'completed':
+            print("Transcrição completa!")
+            return note
+        elif note['status'] == 'failed':
+            print("Erro no processamento")
+            return note
+            
+        time.sleep(5)  # Aguarda 5 segundos antes de verificar novamente
+```
+</CodeGroup>
 
-<CardGroup cols={2}>
-  <Card title="Explorar Conceitos" icon="lightbulb" href="/concepts/notes">
-    Entenda melhor como funcionam as notas e seções
+## Status do processamento
+
+<CardGroup cols={4}>
+  <Card title="pending" icon="clock" color="#f59e0b">
+    Áudio na fila de processamento
   </Card>
-  <Card title="Configurar Webhooks" icon="webhook" href="/concepts/webhooks">
-    Receba notificações quando notas forem processadas
+  <Card title="processing" icon="cog" color="#3b82f6">
+    Transcrição em andamento
   </Card>
-  <Card title="Ver Exemplos" icon="code" href="/examples/basic-integration">
-    Explore integrações mais avançadas
+  <Card title="completed" icon="check" color="#10b981">
+    Processamento finalizado
   </Card>
-  <Card title="Referência da API" icon="book" href="/api-reference/overview">
-    Documentação completa de todos os endpoints
+  <Card title="failed" icon="x" color="#ef4444">
+    Erro no processamento
   </Card>
 </CardGroup>
 
-## Dicas de Otimização
+## Exemplo de resposta completa
 
-<Accordion title="🎤 Qualidade do Áudio">
-  - Use formato **WAV** quando possível
-  - Mantenha ambiente silencioso
-  - Fale claramente, evite pressa
-  - Distância ideal: 30-50cm do microfone
+Quando o processamento estiver concluído (`status: "completed"`), você receberá algo como:
+
+<Accordion title="Ver exemplo completo">
+```json
+{
+  "data": {
+    "id": "note_1234567890",
+    "status": "completed",
+    "patient_name": "Rex",
+    "owner_name": "João Silva",
+    "created_at": "2024-01-15T10:30:00Z",
+    "transcription": {
+      "text": "Paciente Rex, labrador de 3 anos, apresenta sintomas de gastroenterite. Recomendo dieta leve por 3 dias e medicação antiespasmódica.",
+      "confidence": 0.95,
+      "duration": 45.2
+    },
+    "analysis": {
+      "diagnosis": ["gastroenterite"],
+      "symptoms": ["sintomas digestivos"],
+      "treatment": ["dieta leve", "medicação antiespasmódica"],
+      "species": "canino",
+      "breed": "labrador"
+    },
+    "sections": [
+      {
+        "type": "anamnese",
+        "content": "Paciente Rex, labrador de 3 anos...",
+        "timestamp": "00:00"
+      },
+      {
+        "type": "diagnostico",
+        "content": "gastroenterite",
+        "timestamp": "00:35"
+      }
+    ]
+  },
+  "status": "success"
+}
+```
 </Accordion>
 
-<Accordion title="🔧 Integração">
-  - Implemente retry logic para falhas temporárias
-  - Use webhooks para notificações em tempo real
-  - Armazene o `external_id` para mapeamento
-  - Monitore limites de rate limit
-</Accordion>
+## Próximos passos
 
-<Accordion title="🏥 Múltiplas Clínicas">
-  - Crie workspaces separados para cada clínica
-  - Use API Keys específicas por workspace
-  - Implemente seleção de tenant no frontend
-</Accordion>
+<CardGroup cols={2}>
+  <Card title="Webhook Setup" icon="webhook" href="/concepts/webhooks">
+    Configure notificações automáticas quando o processamento terminar
+  </Card>
+  <Card title="Integração Avançada" icon="puzzle-piece" href="/examples/advanced-filtering">
+    Aprenda a filtrar e buscar suas notas
+  </Card>
+  <Card title="Tratamento de Erros" icon="shield-exclamation" href="/integration/error-handling">
+    Implemente tratamento robusto de erros
+  </Card>
+  <Card title="SDK Libraries" icon="code" href="/api-reference/overview">
+    Use nossas bibliotecas oficiais para sua linguagem
+  </Card>
+</CardGroup>
 
----
+## Arquivos de teste
+
+Para experimentar, você pode usar estes arquivos de áudio de exemplo:
+
+<CardGroup cols={2}>
+  <Card title="Download: Consulta Canina" icon="download" href="https://cdn.connectvets.com.br/samples/consulta-canina.mp3">
+    Áudio de exemplo - Consulta de rotina (30s)
+  </Card>
+  <Card title="Download: Emergência Felina" icon="download" href="https://cdn.connectvets.com.br/samples/emergencia-felina.mp3">
+    Áudio de exemplo - Atendimento de emergência (45s)
+  </Card>
+</CardGroup>
 
 <Tip>
-**Precisa de ajuda?** Entre em contato conosco no [Discord](https://discord.gg/uN4NxUGk) ou [WhatsApp](https://wa.me/5531888835141).
+**Dica profissional**: Configure webhooks para receber notificações automáticas quando o processamento terminar, evitando polling manual!
 </Tip>
+
+## Precisa de ajuda?
+
+<CardGroup cols={3}>
+  <Card title="Discord" icon="discord" href="https://discord.gg/uN4NxUGk">
+    Junte-se à nossa comunidade
+  </Card>
+  <Card title="WhatsApp" icon="phone" href="https://wa.me/5531888835141">
+    +55 31 8883-5141 - Suporte direto
+  </Card>
+  <Card title="Status" icon="chart-line" href="https://status.connectvets.com.br">
+    Verifique o status da API
+  </Card>
+</CardGroup> 

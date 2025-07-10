@@ -1,0 +1,925 @@
+---
+title: 'Tratamento de Erros'
+description: 'Como lidar com falhas, códigos de erro e implementar estratégias de recovery robustas'
+---
+
+## Visão Geral
+
+O **ConnectVets Notes** utiliza códigos de status HTTP padrão e retorna respostas estruturadas para todos os tipos de erro. Uma estratégia robusta de tratamento de erros é essencial para uma integração confiável.
+
+<Info>
+  **Boa prática**: Sempre implemente **retry** automático com **backoff exponencial** para erros temporários.
+</Info>
+
+## Códigos de Status HTTP
+
+### Códigos de Sucesso (2xx)
+
+| Código | Significado | Exemplo |
+|--------|-------------|---------|
+| `200` | **OK** - Requisição bem-sucedida | `GET /notes` retorna lista |
+| `201` | **Created** - Recurso criado com sucesso | `POST /notes` cria nova nota |
+| `204` | **No Content** - Operação bem-sucedida, sem conteúdo | `DELETE /notes/{id}` |
+
+### Códigos de Erro do Cliente (4xx)
+
+<CardGroup cols={2}>
+  <Card
+    title="Erros de Autenticação"
+    icon="key"
+  >
+    - `401` **Unauthorized** - API Key inválida
+    - `403` **Forbidden** - Sem permissão para a operação
+    - `429` **Too Many Requests** - Rate limit atingido
+  </Card>
+  
+  <Card
+    title="Erros de Dados"
+    icon="alert-circle"
+  >
+    - `400` **Bad Request** - Dados inválidos
+    - `404` **Not Found** - Recurso não encontrado
+    - `413` **Payload Too Large** - Arquivo muito grande
+    - `422` **Unprocessable Entity** - Dados mal formados
+  </Card>
+</CardGroup>
+
+### Códigos de Erro do Servidor (5xx)
+
+| Código | Significado | Ação Recomendada |
+|--------|-------------|------------------|
+| `500` | **Internal Server Error** | Retry com backoff |
+| `502` | **Bad Gateway** | Retry após alguns segundos |
+| `503` | **Service Unavailable** | Retry após delay maior |
+| `504` | **Gateway Timeout** | Retry com timeout maior |
+
+## Estrutura de Resposta de Erro
+
+### Formato Padrão
+
+```json
+{
+  "error": {
+    "code": "validation_error",
+    "message": "O arquivo de áudio é obrigatório",
+    "details": {
+      "field": "audio",
+      "reason": "missing_required_field"
+    },
+    "request_id": "req_1234567890abcdef",
+    "timestamp": "2024-02-14T18:25:43Z"
+  }
+}
+```
+
+### Códigos de Erro Específicos
+
+<AccordionGroup>
+  <Accordion title="🔐 Erros de Autenticação">
+    **`invalid_api_key`**
+    ```json
+    {
+      "error": {
+        "code": "invalid_api_key",
+        "message": "API key inválida ou expirada",
+        "details": {
+          "provided_key": "cvn_live_abc123...",
+          "hint": "Verifique se a chave está correta e ativa"
+        }
+      }
+    }
+    ```
+    
+    **`insufficient_permissions`**
+    ```json
+    {
+      "error": {
+        "code": "insufficient_permissions",
+        "message": "Chave não tem permissão para esta operação",
+        "details": {
+          "required_permission": "write",
+          "current_permission": "read"
+        }
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="📁 Erros de Arquivo">
+    **`file_too_large`**
+    ```json
+    {
+      "error": {
+        "code": "file_too_large",
+        "message": "Arquivo excede o tamanho máximo permitido",
+        "details": {
+          "file_size": 104857600,
+          "max_size": 104857600,
+          "max_size_mb": 100
+        }
+      }
+    }
+    ```
+    
+    **`unsupported_format`**
+    ```json
+    {
+      "error": {
+        "code": "unsupported_format",
+        "message": "Formato de arquivo não suportado",
+        "details": {
+          "provided_format": "txt",
+          "supported_formats": ["mp3", "wav", "m4a", "aac"]
+        }
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="🎵 Erros de Processamento de Áudio">
+    **`audio_quality_poor`**
+    ```json
+    {
+      "error": {
+        "code": "audio_quality_poor",
+        "message": "Qualidade do áudio insuficiente para processamento",
+        "details": {
+          "issues": ["volume_too_low", "excessive_noise"],
+          "recommendations": [
+            "Aumentar volume do microfone",
+            "Reduzir ruído de fundo"
+          ]
+        }
+      }
+    }
+    ```
+    
+    **`audio_duration_invalid`**
+    ```json
+    {
+      "error": {
+        "code": "audio_duration_invalid",
+        "message": "Duração do áudio fora dos limites permitidos",
+        "details": {
+          "duration": 5,
+          "min_duration": 10,
+          "max_duration": 3600
+        }
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="💰 Erros de Cobrança">
+    **`quota_exceeded`**
+    ```json
+    {
+      "error": {
+        "code": "quota_exceeded",
+        "message": "Cota mensal de processamento excedida",
+        "details": {
+          "current_usage": 1500,
+          "quota_limit": 1000,
+          "reset_date": "2024-03-01T00:00:00Z"
+        }
+      }
+    }
+    ```
+    
+    **`subscription_expired`**
+    ```json
+    {
+      "error": {
+        "code": "subscription_expired",
+        "message": "Assinatura expirada",
+        "details": {
+          "expired_at": "2024-02-01T00:00:00Z",
+          "renewal_url": "https://notes.connectvets.com.br/billing"
+        }
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Implementação de Tratamento de Erros
+
+### Cliente Base com Error Handling
+
+```javascript
+class ConnectVetsClient {
+  constructor(apiKey, options = {}) {
+    this.apiKey = apiKey;
+    this.baseUrl = options.baseUrl || 'https://api.connectvets.com';
+    this.maxRetries = options.maxRetries || 3;
+    this.retryDelay = options.retryDelay || 1000;
+  }
+  
+  async request(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
+    const config = {
+      ...options,
+      headers: {
+        'X-API-KEY': this.apiKey,
+        ...options.headers
+      }
+    };
+    
+    return this.executeWithRetry(() => fetch(url, config));
+  }
+  
+  async executeWithRetry(operation, attempt = 1) {
+    try {
+      const response = await operation();
+      
+      // Verificar se a resposta é bem-sucedida
+      if (response.ok) {
+        return response.json();
+      }
+      
+      // Tratar erro baseado no status
+      const errorData = await response.json().catch(() => ({}));
+      const error = new ConnectVetsError(response.status, errorData, response);
+      
+      // Verificar se deve tentar novamente
+      if (this.shouldRetry(error, attempt)) {
+        return this.retryRequest(operation, attempt);
+      }
+      
+      throw error;
+      
+    } catch (error) {
+      // Erros de rede ou outros
+      if (error instanceof ConnectVetsError) {
+        throw error;
+      }
+      
+      // Retry para erros de rede
+      if (attempt < this.maxRetries) {
+        return this.retryRequest(operation, attempt);
+      }
+      
+      throw new ConnectVetsError(0, { 
+        code: 'network_error',
+        message: error.message 
+      });
+    }
+  }
+  
+  shouldRetry(error, attempt) {
+    // Não retry se já atingiu o máximo
+    if (attempt >= this.maxRetries) {
+      return false;
+    }
+    
+    // Retry para erros de servidor (5xx)
+    if (error.status >= 500) {
+      return true;
+    }
+    
+    // Retry para rate limit
+    if (error.status === 429) {
+      return true;
+    }
+    
+    // Retry para erros específicos
+    const retryableCodes = [
+      'service_unavailable',
+      'gateway_timeout',
+      'processing_timeout'
+    ];
+    
+    return retryableCodes.includes(error.code);
+  }
+  
+  async retryRequest(operation, attempt) {
+    const delay = this.calculateDelay(attempt);
+    console.log(`⏳ Tentativa ${attempt + 1} em ${delay}ms...`);
+    
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return this.executeWithRetry(operation, attempt + 1);
+  }
+  
+  calculateDelay(attempt) {
+    // Backoff exponencial com jitter
+    const baseDelay = this.retryDelay;
+    const exponentialDelay = baseDelay * Math.pow(2, attempt - 1);
+    const jitter = Math.random() * 0.1 * exponentialDelay;
+    
+    return Math.min(exponentialDelay + jitter, 30000); // Max 30s
+  }
+}
+
+// Classe de erro customizada
+class ConnectVetsError extends Error {
+  constructor(status, errorData, response = null) {
+    const message = errorData.error?.message || errorData.message || 'Erro desconhecido';
+    super(message);
+    
+    this.name = 'ConnectVetsError';
+    this.status = status;
+    this.code = errorData.error?.code || errorData.code || 'unknown_error';
+    this.details = errorData.error?.details || errorData.details || {};
+    this.requestId = errorData.error?.request_id || errorData.request_id;
+    this.response = response;
+  }
+  
+  isRetryable() {
+    return this.status >= 500 || this.status === 429;
+  }
+  
+  isAuthError() {
+    return this.status === 401 || this.status === 403;
+  }
+  
+  isValidationError() {
+    return this.status === 400 || this.status === 422;
+  }
+  
+  isQuotaError() {
+    return this.code === 'quota_exceeded' || this.code === 'subscription_expired';
+  }
+}
+```
+
+### Uso do Cliente com Error Handling
+
+```javascript
+const client = new ConnectVetsClient(process.env.CONNECTVETS_API_KEY, {
+  maxRetries: 3,
+  retryDelay: 2000
+});
+
+async function createNoteWithErrorHandling(audioFile, metadata) {
+  try {
+    console.log('📤 Enviando áudio para processamento...');
+    
+    const formData = new FormData();
+    formData.append('audio', audioFile);
+    formData.append('metadata', JSON.stringify(metadata));
+    
+    const note = await client.request('/notes', {
+      method: 'POST',
+      body: formData
+    });
+    
+    console.log('✅ Nota criada com sucesso:', note.id);
+    return note;
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar nota:', error.message);
+    
+    // Tratar diferentes tipos de erro
+    if (error.isAuthError()) {
+      handleAuthError(error);
+    } else if (error.isValidationError()) {
+      handleValidationError(error);
+    } else if (error.isQuotaError()) {
+      handleQuotaError(error);
+    } else if (error.isRetryable()) {
+      handleRetryableError(error);
+    } else {
+      handleUnknownError(error);
+    }
+    
+    throw error;
+  }
+}
+
+function handleAuthError(error) {
+  console.error('🔐 Erro de autenticação:', error.message);
+  
+  if (error.code === 'invalid_api_key') {
+    // Notificar sobre API key inválida
+    notifyUser('API Key inválida. Verifique suas configurações.');
+  } else if (error.code === 'insufficient_permissions') {
+    // Notificar sobre permissões
+    notifyUser('Sem permissão para esta operação. Upgrade necessário.');
+  }
+}
+
+function handleValidationError(error) {
+  console.error('📝 Erro de validação:', error.message);
+  
+  const { details } = error;
+  
+  if (details.field === 'audio') {
+    notifyUser('Problema com o arquivo de áudio. Verifique o formato e tamanho.');
+  } else if (details.field === 'metadata') {
+    notifyUser('Metadados inválidos. Verifique os campos obrigatórios.');
+  }
+  
+  // Mostrar detalhes específicos
+  console.log('📋 Detalhes:', details);
+}
+
+function handleQuotaError(error) {
+  console.error('💰 Erro de cota:', error.message);
+  
+  if (error.code === 'quota_exceeded') {
+    const { current_usage, quota_limit, reset_date } = error.details;
+    notifyUser(`Cota excedida (${current_usage}/${quota_limit}). Renova em ${reset_date}`);
+  } else if (error.code === 'subscription_expired') {
+    const { renewal_url } = error.details;
+    notifyUser('Assinatura expirada. Renove sua assinatura.', renewal_url);
+  }
+}
+
+function handleRetryableError(error) {
+  console.error('🔄 Erro temporário:', error.message);
+  notifyUser('Erro temporário. Tentando novamente...');
+}
+
+function handleUnknownError(error) {
+  console.error('❓ Erro desconhecido:', error);
+  
+  // Reportar erro para monitoramento
+  reportError(error);
+  
+  notifyUser('Erro interno. Nossa equipe foi notificada.');
+}
+```
+
+## Estratégias de Recovery
+
+### Retry com Backoff Exponencial
+
+```javascript
+class RetryHandler {
+  static async executeWithRetry(
+    operation, 
+    options = {}
+  ) {
+    const {
+      maxRetries = 3,
+      initialDelay = 1000,
+      maxDelay = 30000,
+      backoffFactor = 2,
+      jitter = true
+    } = options;
+    
+    let lastError;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        
+        // Não retry para erros não retryable
+        if (!this.isRetryable(error)) {
+          throw error;
+        }
+        
+        // Última tentativa
+        if (attempt === maxRetries - 1) {
+          break;
+        }
+        
+        // Calcular delay
+        const delay = this.calculateDelay(
+          attempt, 
+          initialDelay, 
+          maxDelay, 
+          backoffFactor, 
+          jitter
+        );
+        
+        console.log(`⏳ Retry ${attempt + 1}/${maxRetries} em ${delay}ms`);
+        await this.sleep(delay);
+      }
+    }
+    
+    throw lastError;
+  }
+  
+  static isRetryable(error) {
+    // Erros de rede
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+      return true;
+    }
+    
+    // Erros HTTP retryable
+    if (error.status >= 500 || error.status === 429) {
+      return true;
+    }
+    
+    // Códigos específicos retryable
+    const retryableCodes = [
+      'service_unavailable',
+      'gateway_timeout',
+      'processing_timeout',
+      'temporary_error'
+    ];
+    
+    return retryableCodes.includes(error.code);
+  }
+  
+  static calculateDelay(attempt, initial, max, factor, jitter) {
+    let delay = initial * Math.pow(factor, attempt);
+    
+    if (jitter) {
+      // Adicionar jitter de ±25%
+      const jitterAmount = delay * 0.25;
+      delay += (Math.random() - 0.5) * jitterAmount * 2;
+    }
+    
+    return Math.min(Math.max(delay, 0), max);
+  }
+  
+  static sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+// Uso do RetryHandler
+async function uploadAudioWithRetry(audioFile, metadata) {
+  return RetryHandler.executeWithRetry(
+    () => client.createNote(audioFile, metadata),
+    {
+      maxRetries: 5,
+      initialDelay: 2000,
+      maxDelay: 60000,
+      backoffFactor: 2,
+      jitter: true
+    }
+  );
+}
+```
+
+### Circuit Breaker Pattern
+
+```javascript
+class CircuitBreaker {
+  constructor(options = {}) {
+    this.failureThreshold = options.failureThreshold || 5;
+    this.resetTimeout = options.resetTimeout || 60000;
+    this.monitoringPeriod = options.monitoringPeriod || 10000;
+    
+    this.state = 'CLOSED'; // CLOSED, OPEN, HALF_OPEN
+    this.failureCount = 0;
+    this.lastFailureTime = null;
+    this.successCount = 0;
+  }
+  
+  async execute(operation) {
+    if (this.state === 'OPEN') {
+      if (this.shouldAttemptReset()) {
+        this.state = 'HALF_OPEN';
+        this.successCount = 0;
+      } else {
+        throw new Error('Circuit breaker está OPEN. Serviço indisponível.');
+      }
+    }
+    
+    try {
+      const result = await operation();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+  
+  onSuccess() {
+    this.failureCount = 0;
+    
+    if (this.state === 'HALF_OPEN') {
+      this.successCount++;
+      
+      // Após algumas operações bem-sucedidas, fechar o circuit
+      if (this.successCount >= 3) {
+        this.state = 'CLOSED';
+        console.log('🔄 Circuit breaker fechado. Serviço restaurado.');
+      }
+    }
+  }
+  
+  onFailure() {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+    
+    if (this.failureCount >= this.failureThreshold) {
+      this.state = 'OPEN';
+      console.log('🚫 Circuit breaker aberto. Serviço marcado como indisponível.');
+    }
+  }
+  
+  shouldAttemptReset() {
+    return Date.now() - this.lastFailureTime >= this.resetTimeout;
+  }
+}
+
+// Uso do Circuit Breaker
+const circuitBreaker = new CircuitBreaker({
+  failureThreshold: 3,
+  resetTimeout: 30000
+});
+
+async function createNoteWithCircuitBreaker(audioFile, metadata) {
+  return circuitBreaker.execute(async () => {
+    return client.createNote(audioFile, metadata);
+  });
+}
+```
+
+## Monitoramento e Alertas
+
+### Sistema de Logs Estruturados
+
+```javascript
+class ConnectVetsLogger {
+  static log(level, message, data = {}) {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      service: 'connectvets-integration',
+      ...data
+    };
+    
+    console.log(JSON.stringify(logEntry));
+    
+    // Enviar para serviço de monitoramento
+    if (level === 'ERROR') {
+      this.reportError(logEntry);
+    }
+  }
+  
+  static info(message, data) {
+    this.log('INFO', message, data);
+  }
+  
+  static warn(message, data) {
+    this.log('WARN', message, data);
+  }
+  
+  static error(message, error, data = {}) {
+    this.log('ERROR', message, {
+      ...data,
+      error: {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        status: error.status
+      }
+    });
+  }
+  
+  static reportError(logEntry) {
+    // Integrar com serviços como Sentry, Datadog, etc.
+    // sentry.captureException(logEntry);
+  }
+}
+
+// Uso em operações
+async function processAudio(audioFile) {
+  const startTime = Date.now();
+  const operationId = generateId();
+  
+  ConnectVetsLogger.info('Iniciando processamento de áudio', {
+    operation_id: operationId,
+    file_size: audioFile.size,
+    file_type: audioFile.type
+  });
+  
+  try {
+    const result = await client.createNote(audioFile, metadata);
+    
+    ConnectVetsLogger.info('Processamento concluído', {
+      operation_id: operationId,
+      note_id: result.id,
+      duration_ms: Date.now() - startTime
+    });
+    
+    return result;
+    
+  } catch (error) {
+    ConnectVetsLogger.error('Falha no processamento', error, {
+      operation_id: operationId,
+      duration_ms: Date.now() - startTime
+    });
+    
+    throw error;
+  }
+}
+```
+
+### Métricas de Performance
+
+```javascript
+class MetricsCollector {
+  constructor() {
+    this.metrics = {
+      requests_total: 0,
+      requests_success: 0,
+      requests_failed: 0,
+      response_times: [],
+      error_codes: {}
+    };
+  }
+  
+  recordRequest(duration, success, errorCode = null) {
+    this.metrics.requests_total++;
+    this.metrics.response_times.push(duration);
+    
+    // Manter apenas últimas 100 medições
+    if (this.metrics.response_times.length > 100) {
+      this.metrics.response_times.shift();
+    }
+    
+    if (success) {
+      this.metrics.requests_success++;
+    } else {
+      this.metrics.requests_failed++;
+      
+      if (errorCode) {
+        this.metrics.error_codes[errorCode] = 
+          (this.metrics.error_codes[errorCode] || 0) + 1;
+      }
+    }
+  }
+  
+  getStats() {
+    const responseTimes = this.metrics.response_times;
+    
+    return {
+      total_requests: this.metrics.requests_total,
+      success_rate: this.metrics.requests_success / this.metrics.requests_total * 100,
+      avg_response_time: responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length,
+      p95_response_time: this.percentile(responseTimes, 0.95),
+      error_distribution: this.metrics.error_codes
+    };
+  }
+  
+  percentile(arr, p) {
+    const sorted = arr.slice().sort((a, b) => a - b);
+    const index = Math.ceil(sorted.length * p) - 1;
+    return sorted[index];
+  }
+}
+
+// Uso das métricas
+const metrics = new MetricsCollector();
+
+async function monitoredRequest(operation) {
+  const startTime = Date.now();
+  
+  try {
+    const result = await operation();
+    const duration = Date.now() - startTime;
+    
+    metrics.recordRequest(duration, true);
+    return result;
+    
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    metrics.recordRequest(duration, false, error.code);
+    throw error;
+  }
+}
+
+// Relatório periódico
+setInterval(() => {
+  const stats = metrics.getStats();
+  console.log('📊 Estatísticas ConnectVets:', stats);
+  
+  // Alertar se success rate < 95%
+  if (stats.success_rate < 95) {
+    console.warn('⚠️ Alta taxa de erro detectada!', stats);
+  }
+}, 300000); // A cada 5 minutos
+```
+
+## Testes de Error Handling
+
+### Testes Unitários
+
+```javascript
+describe('ConnectVets Error Handling', () => {
+  let client;
+  
+  beforeEach(() => {
+    client = new ConnectVetsClient('test_key');
+  });
+  
+  test('deve retry em erro 500', async () => {
+    const mockFetch = jest.fn()
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: 'note_123' })
+      });
+    
+    global.fetch = mockFetch;
+    
+    const result = await client.request('/notes');
+    
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.id).toBe('note_123');
+  });
+  
+  test('deve lançar erro em API key inválida', async () => {
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({
+        error: {
+          code: 'invalid_api_key',
+          message: 'API key inválida'
+        }
+      })
+    });
+    
+    global.fetch = mockFetch;
+    
+    await expect(client.request('/notes')).rejects.toThrow('API key inválida');
+  });
+  
+  test('circuit breaker deve abrir após muitas falhas', async () => {
+    const breaker = new CircuitBreaker({ failureThreshold: 2 });
+    const failingOperation = jest.fn().mockRejectedValue(new Error('Falha'));
+    
+    // Primeira falha
+    await expect(breaker.execute(failingOperation)).rejects.toThrow();
+    expect(breaker.state).toBe('CLOSED');
+    
+    // Segunda falha - deve abrir circuit
+    await expect(breaker.execute(failingOperation)).rejects.toThrow();
+    expect(breaker.state).toBe('OPEN');
+    
+    // Terceira tentativa deve falhar imediatamente
+    await expect(breaker.execute(failingOperation)).rejects.toThrow('Circuit breaker está OPEN');
+  });
+});
+```
+
+## Checklist de Error Handling
+
+<AccordionGroup>
+  <Accordion title="✅ Implementação Básica">
+    - [ ] Cliente HTTP com tratamento de erro estruturado
+    - [ ] Códigos de status HTTP mapeados corretamente
+    - [ ] Respostas de erro parseadas e tratadas
+    - [ ] Logs estruturados implementados
+    - [ ] Métricas básicas coletadas
+  </Accordion>
+  
+  <Accordion title="✅ Estratégias de Recovery">
+    - [ ] Retry automático com backoff exponencial
+    - [ ] Circuit breaker para falhas consecutivas
+    - [ ] Timeouts configurados adequadamente
+    - [ ] Fallbacks para cenários críticos
+    - [ ] Queue para operações não críticas
+  </Accordion>
+  
+  <Accordion title="✅ Monitoramento">
+    - [ ] Alertas para alta taxa de erro
+    - [ ] Dashboard de métricas em tempo real
+    - [ ] Logs centralizados e pesquisáveis
+    - [ ] Rastreamento de performance
+    - [ ] Notificações automáticas para falhas críticas
+  </Accordion>
+  
+  <Accordion title="✅ Testes">
+    - [ ] Testes unitários para todos os cenários de erro
+    - [ ] Testes de integração com mock de falhas
+    - [ ] Testes de carga e stress
+    - [ ] Simulação de falhas de rede
+    - [ ] Validação de recovery automático
+  </Accordion>
+</AccordionGroup>
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card
+    title="Onboarding"
+    icon="play"
+    href="/integration/onboarding"
+  >
+    Voltar ao guia de integração
+  </Card>
+  <Card
+    title="Requisitos de Áudio"
+    icon="microphone"
+    href="/integration/audio-requirements"
+  >
+    Especificações técnicas de áudio
+  </Card>
+  <Card
+    title="API Reference"
+    icon="book"
+    href="/api-reference/overview"
+  >
+    Documentação completa da API
+  </Card>
+  <Card
+    title="Exemplos Práticos"
+    icon="code"
+    href="/examples/advanced-filtering"
+  >
+    Integrações robustas funcionando
+  </Card>
+</CardGroup> 

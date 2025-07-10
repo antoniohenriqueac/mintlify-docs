@@ -1,0 +1,722 @@
+---
+title: 'Filtros Avançados'
+description: 'Implementar busca inteligente e filtros avançados para gerenciar notas do ConnectVets'
+---
+
+## Visão Geral
+
+Este exemplo demonstra como implementar **filtros avançados** e **busca inteligente** para gerenciar grandes volumes de notas veterinárias. Inclui filtros por data, espécie, veterinário, tipo de consulta e busca textual.
+
+<Info>
+  **Resultado**: Sistema completo de busca e filtros para encontrar rapidamente consultas específicas.
+</Info>
+
+## Interface de Filtros
+
+### HTML da Interface
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnectVets - Filtros Avançados</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Busca Avançada de Consultas</h1>
+        </header>
+
+        <!-- Seção de Filtros -->
+        <section class="filters-section">
+            <h2>Filtros</h2>
+            
+            <!-- Busca Textual -->
+            <div class="search-box">
+                <input type="text" id="searchText" placeholder="🔍 Buscar por paciente, diagnóstico, tratamento...">
+                <button id="clearSearch">✕</button>
+            </div>
+
+            <!-- Filtros Rápidos -->
+            <div class="quick-filters">
+                <button class="filter-btn active" data-period="all">Todas</button>
+                <button class="filter-btn" data-period="today">Hoje</button>
+                <button class="filter-btn" data-period="week">Esta Semana</button>
+                <button class="filter-btn" data-period="month">Este Mês</button>
+            </div>
+
+            <!-- Filtros Detalhados -->
+            <div class="detailed-filters">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>📅 Período</label>
+                        <input type="date" id="dateFrom">
+                        <span>até</span>
+                        <input type="date" id="dateTo">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>🐕 Espécie</label>
+                        <select id="speciesFilter" multiple>
+                            <option value="Canino">Canino</option>
+                            <option value="Felino">Felino</option>
+                            <option value="Ave">Ave</option>
+                            <option value="Equino">Equino</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>👨‍⚕️ Veterinário</label>
+                        <select id="doctorFilter">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>🏥 Tipo de Consulta</label>
+                        <select id="consultationTypeFilter">
+                            <option value="">Todos</option>
+                            <option value="consulta">Consulta</option>
+                            <option value="cirurgia">Cirurgia</option>
+                            <option value="retorno">Retorno</option>
+                            <option value="emergencia">Emergência</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>📊 Status</label>
+                        <select id="statusFilter">
+                            <option value="">Todos</option>
+                            <option value="completed">Processado</option>
+                            <option value="processing">Processando</option>
+                            <option value="failed">Erro</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>📋 Ordenar por</label>
+                        <select id="sortBy">
+                            <option value="created_at_desc">Data ↓</option>
+                            <option value="created_at_asc">Data ↑</option>
+                            <option value="patient_name_asc">Paciente A-Z</option>
+                            <option value="doctor_name_asc">Veterinário A-Z</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button id="applyFilters" class="btn-primary">🔍 Aplicar Filtros</button>
+                <button id="clearFilters" class="btn-secondary">🗑️ Limpar</button>
+                <button id="exportResults" class="btn-export">📊 Exportar</button>
+            </div>
+        </section>
+
+        <!-- Resultados -->
+        <section class="results-section">
+            <div class="results-header">
+                <h2>Resultados</h2>
+                <div class="results-stats" id="resultsStats">
+                    Carregando...
+                </div>
+            </div>
+
+            <div class="results-container" id="resultsContainer">
+                <!-- Resultados serão inseridos aqui -->
+            </div>
+
+            <!-- Paginação -->
+            <div class="pagination" id="pagination">
+                <!-- Controles de paginação -->
+            </div>
+        </section>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="filters.js"></script>
+</body>
+</html>
+```
+
+## Implementação dos Filtros
+
+### Cliente com Filtros Avançados
+
+```javascript
+class AdvancedNotesClient {
+    constructor(config) {
+        this.config = config;
+        this.cache = new Map();
+        this.currentFilters = {};
+        this.currentPage = 1;
+        this.pageSize = 20;
+    }
+
+    // Buscar notas com filtros
+    async searchNotes(filters = {}, page = 1, pageSize = 20) {
+        const params = this.buildQueryParams(filters, page, pageSize);
+        const cacheKey = params.toString();
+        
+        // Verificar cache
+        if (this.cache.has(cacheKey)) {
+            console.log('📋 Resultado do cache');
+            return this.cache.get(cacheKey);
+        }
+
+        try {
+            const response = await this.request(`/notes?${params}`);
+            
+            // Adicionar ao cache (manter apenas 50 consultas)
+            if (this.cache.size >= 50) {
+                const firstKey = this.cache.keys().next().value;
+                this.cache.delete(firstKey);
+            }
+            this.cache.set(cacheKey, response);
+            
+            return response;
+        } catch (error) {
+            console.error('❌ Erro na busca:', error);
+            throw error;
+        }
+    }
+
+    // Construir parâmetros de query
+    buildQueryParams(filters, page, pageSize) {
+        const params = new URLSearchParams();
+        
+        // Paginação
+        params.set('page', page);
+        params.set('limit', pageSize);
+        
+        // Busca textual
+        if (filters.search) {
+            params.set('search', filters.search);
+        }
+        
+        // Filtros de data
+        if (filters.dateFrom) {
+            params.set('created_after', filters.dateFrom);
+        }
+        if (filters.dateTo) {
+            params.set('created_before', filters.dateTo);
+        }
+        
+        // Filtros categóricos
+        if (filters.species && filters.species.length > 0) {
+            params.set('species', filters.species.join(','));
+        }
+        if (filters.doctor) {
+            params.set('doctor_name', filters.doctor);
+        }
+        if (filters.consultationType) {
+            params.set('consultation_type', filters.consultationType);
+        }
+        if (filters.status) {
+            params.set('status', filters.status);
+        }
+        
+        // Ordenação
+        if (filters.sortBy) {
+            const [field, direction] = filters.sortBy.split('_');
+            params.set('sort_by', field);
+            params.set('sort_direction', direction === 'desc' ? 'desc' : 'asc');
+        }
+        
+        return params;
+    }
+
+    // Obter estatísticas dos filtros
+    async getFilterStats(filters = {}) {
+        const params = this.buildQueryParams(filters, 1, 1);
+        params.set('include_stats', 'true');
+        
+        try {
+            const response = await this.request(`/notes/stats?${params}`);
+            return response.stats;
+        } catch (error) {
+            console.error('❌ Erro ao obter estatísticas:', error);
+            return null;
+        }
+    }
+
+    // Obter listas para filtros (veterinários únicos, etc.)
+    async getFilterOptions() {
+        try {
+            const response = await this.request('/notes/filter-options');
+            return response;
+        } catch (error) {
+            console.error('❌ Erro ao obter opções:', error);
+            return {};
+        }
+    }
+
+    // Exportar resultados
+    async exportResults(filters = {}, format = 'csv') {
+        const params = this.buildQueryParams(filters, 1, 10000);
+        params.set('export', format);
+        
+        try {
+            const response = await fetch(`${this.config.baseUrl}/notes/export?${params}`, {
+                headers: {
+                    'X-API-KEY': this.config.apiKey
+                }
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                this.downloadBlob(blob, `notes_export_${Date.now()}.${format}`);
+            }
+        } catch (error) {
+            console.error('❌ Erro na exportação:', error);
+        }
+    }
+
+    // Fazer requisição base
+    async request(endpoint) {
+        const response = await fetch(`${this.config.baseUrl}${endpoint}`, {
+            headers: {
+                'X-API-KEY': this.config.apiKey,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+    }
+
+    // Download de arquivo
+    downloadBlob(blob, filename) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+}
+```
+
+### Controlador da Interface
+
+```javascript
+class FiltersApp {
+    constructor() {
+        this.client = new AdvancedNotesClient(window.ConnectVetsConfig);
+        this.currentFilters = {};
+        this.currentPage = 1;
+        this.debounceTimer = null;
+        
+        this.initializeUI();
+        this.loadInitialData();
+    }
+
+    async initializeUI() {
+        // Event listeners para busca
+        document.getElementById('searchText').addEventListener('input', (e) => {
+            this.debounceSearch(e.target.value);
+        });
+        
+        document.getElementById('clearSearch').addEventListener('click', () => {
+            document.getElementById('searchText').value = '';
+            this.applyFilters();
+        });
+
+        // Filtros rápidos
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.handleQuickFilter(e.target.dataset.period);
+            });
+        });
+
+        // Filtros detalhados
+        const filterInputs = [
+            'dateFrom', 'dateTo', 'speciesFilter', 'doctorFilter', 
+            'consultationTypeFilter', 'statusFilter', 'sortBy'
+        ];
+        
+        filterInputs.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => this.applyFilters());
+            }
+        });
+
+        // Ações
+        document.getElementById('applyFilters').addEventListener('click', () => this.applyFilters());
+        document.getElementById('clearFilters').addEventListener('click', () => this.clearFilters());
+        document.getElementById('exportResults').addEventListener('click', () => this.exportResults());
+    }
+
+    async loadInitialData() {
+        try {
+            // Carregar opções para filtros
+            const options = await this.client.getFilterOptions();
+            this.populateFilterOptions(options);
+            
+            // Busca inicial
+            this.applyFilters();
+        } catch (error) {
+            console.error('❌ Erro ao carregar dados iniciais:', error);
+        }
+    }
+
+    // Preencher opções dos filtros
+    populateFilterOptions(options) {
+        // Veterinários
+        const doctorSelect = document.getElementById('doctorFilter');
+        if (options.doctors) {
+            options.doctors.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor;
+                option.textContent = doctor;
+                doctorSelect.appendChild(option);
+            });
+        }
+    }
+
+    // Busca com debounce
+    debounceSearch(searchText) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+            this.currentFilters.search = searchText;
+            this.applyFilters();
+        }, 500);
+    }
+
+    // Filtros rápidos
+    handleQuickFilter(period) {
+        // Remover classe active de todos
+        document.querySelectorAll('.filter-btn').forEach(btn => 
+            btn.classList.remove('active'));
+        
+        // Adicionar classe active ao clicado
+        document.querySelector(`[data-period="${period}"]`).classList.add('active');
+        
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        switch (period) {
+            case 'today':
+                this.currentFilters.dateFrom = today.toISOString().split('T')[0];
+                this.currentFilters.dateTo = today.toISOString().split('T')[0];
+                break;
+            case 'week':
+                const weekStart = new Date(today);
+                weekStart.setDate(today.getDate() - today.getDay());
+                this.currentFilters.dateFrom = weekStart.toISOString().split('T')[0];
+                this.currentFilters.dateTo = today.toISOString().split('T')[0];
+                break;
+            case 'month':
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                this.currentFilters.dateFrom = monthStart.toISOString().split('T')[0];
+                this.currentFilters.dateTo = today.toISOString().split('T')[0];
+                break;
+            default:
+                delete this.currentFilters.dateFrom;
+                delete this.currentFilters.dateTo;
+        }
+        
+        this.updateFilterInputs();
+        this.applyFilters();
+    }
+
+    // Aplicar filtros
+    async applyFilters() {
+        this.currentPage = 1;
+        this.collectFilters();
+        
+        try {
+            document.getElementById('resultsStats').textContent = 'Buscando...';
+            
+            const results = await this.client.searchNotes(
+                this.currentFilters, 
+                this.currentPage, 
+                20
+            );
+            
+            this.displayResults(results);
+            this.updateStats(results);
+            this.updatePagination(results);
+            
+        } catch (error) {
+            console.error('❌ Erro na busca:', error);
+            this.displayError(error);
+        }
+    }
+
+    // Coletar valores dos filtros
+    collectFilters() {
+        this.currentFilters = {
+            search: document.getElementById('searchText').value,
+            dateFrom: document.getElementById('dateFrom').value,
+            dateTo: document.getElementById('dateTo').value,
+            species: Array.from(document.getElementById('speciesFilter').selectedOptions)
+                .map(option => option.value),
+            doctor: document.getElementById('doctorFilter').value,
+            consultationType: document.getElementById('consultationTypeFilter').value,
+            status: document.getElementById('statusFilter').value,
+            sortBy: document.getElementById('sortBy').value
+        };
+        
+        // Remover valores vazios
+        Object.keys(this.currentFilters).forEach(key => {
+            if (!this.currentFilters[key] || 
+                (Array.isArray(this.currentFilters[key]) && this.currentFilters[key].length === 0)) {
+                delete this.currentFilters[key];
+            }
+        });
+    }
+
+    // Exibir resultados
+    displayResults(results) {
+        const container = document.getElementById('resultsContainer');
+        
+        if (!results.data || results.data.length === 0) {
+            container.innerHTML = `
+                <div class="no-results">
+                    <h3>🔍 Nenhuma consulta encontrada</h3>
+                    <p>Tente ajustar os filtros ou realizar uma nova busca.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const html = results.data.map(note => this.renderNoteCard(note)).join('');
+        container.innerHTML = html;
+    }
+
+    // Renderizar card da nota
+    renderNoteCard(note) {
+        const statusIcons = {
+            'completed': '✅',
+            'processing': '🔄',
+            'failed': '❌'
+        };
+        
+        const statusIcon = statusIcons[note.status] || '⏳';
+        const createdDate = new Date(note.created_at).toLocaleString('pt-BR');
+        
+        return `
+            <div class="note-card" onclick="window.open('/notes/${note.id}', '_blank')">
+                <div class="note-header">
+                    <h3>🐕 ${note.metadata?.patient_name || 'Paciente'}</h3>
+                    <span class="note-status">${statusIcon} ${note.status}</span>
+                </div>
+                
+                <div class="note-info">
+                    <p><strong>👨‍⚕️ Veterinário:</strong> ${note.metadata?.doctor_name || '-'}</p>
+                    <p><strong>🐕 Espécie:</strong> ${note.metadata?.species || '-'}</p>
+                    <p><strong>🏥 Tipo:</strong> ${note.metadata?.consultation_type || '-'}</p>
+                    <p><strong>📅 Data:</strong> ${createdDate}</p>
+                </div>
+                
+                ${note.sections && note.sections.length > 0 ? `
+                    <div class="note-preview">
+                        <p><strong>📋 Resumo:</strong> ${this.truncateText(
+                            note.sections.find(s => s.type === 'summary')?.content || 
+                            note.sections[0]?.content || '', 100
+                        )}</p>
+                    </div>
+                ` : ''}
+                
+                <div class="note-actions">
+                    <button onclick="event.stopPropagation(); window.viewNote('${note.id}')" 
+                            class="btn-view">👁️ Ver</button>
+                    <button onclick="event.stopPropagation(); window.downloadNote('${note.id}')" 
+                            class="btn-download">📥 Download</button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Atualizar estatísticas
+    updateStats(results) {
+        const stats = document.getElementById('resultsStats');
+        const total = results.pagination?.total || results.data.length;
+        const showing = results.data.length;
+        
+        stats.innerHTML = `
+            Mostrando <strong>${showing}</strong> de <strong>${total}</strong> consultas
+            ${this.currentFilters.search ? `para "${this.currentFilters.search}"` : ''}
+        `;
+    }
+
+    // Limpar filtros
+    clearFilters() {
+        this.currentFilters = {};
+        
+        // Limpar inputs
+        document.getElementById('searchText').value = '';
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
+        document.getElementById('speciesFilter').selectedIndex = -1;
+        document.getElementById('doctorFilter').selectedIndex = 0;
+        document.getElementById('consultationTypeFilter').selectedIndex = 0;
+        document.getElementById('statusFilter').selectedIndex = 0;
+        document.getElementById('sortBy').selectedIndex = 0;
+        
+        // Reset filtros rápidos
+        document.querySelectorAll('.filter-btn').forEach(btn => 
+            btn.classList.remove('active'));
+        document.querySelector('[data-period="all"]').classList.add('active');
+        
+        this.applyFilters();
+    }
+
+    // Exportar resultados
+    async exportResults() {
+        try {
+            await this.client.exportResults(this.currentFilters, 'csv');
+            console.log('✅ Exportação iniciada');
+        } catch (error) {
+            console.error('❌ Erro na exportação:', error);
+        }
+    }
+
+    // Helpers
+    truncateText(text, maxLength) {
+        if (text.length <= maxLength) return text;
+        return text.substr(0, maxLength) + '...';
+    }
+
+    updateFilterInputs() {
+        if (this.currentFilters.dateFrom) {
+            document.getElementById('dateFrom').value = this.currentFilters.dateFrom;
+        }
+        if (this.currentFilters.dateTo) {
+            document.getElementById('dateTo').value = this.currentFilters.dateTo;
+        }
+    }
+}
+
+// Funções globais para ações das notas
+window.viewNote = (noteId) => {
+    window.location.href = `/notes/${noteId}`;
+};
+
+window.downloadNote = async (noteId) => {
+    // Implementar download da nota
+    console.log('Download nota:', noteId);
+};
+
+// Inicializar aplicação
+document.addEventListener('DOMContentLoaded', () => {
+    window.filtersApp = new FiltersApp();
+});
+```
+
+## Filtros Suportados
+
+### 📝 Busca Textual
+```javascript
+// Busca em múltiplos campos
+const searchParams = {
+    search: "dor abdomen", // Busca em: paciente, diagnóstico, tratamento, transcrição
+};
+```
+
+### 📅 Filtros de Data
+```javascript
+const dateFilters = {
+    dateFrom: "2024-01-01",     // Data início
+    dateTo: "2024-12-31",       // Data fim
+    created_after: "2024-01-01T00:00:00Z",
+    created_before: "2024-12-31T23:59:59Z"
+};
+```
+
+### 🏥 Filtros Categóricos
+```javascript
+const categoryFilters = {
+    species: ["Canino", "Felino"],           // Múltiplas espécies
+    doctor_name: "Dr. Silva",                // Veterinário específico
+    consultation_type: "cirurgia",           // Tipo de consulta
+    status: "completed"                      // Status do processamento
+};
+```
+
+### 📊 Ordenação
+```javascript
+const sortOptions = {
+    sort_by: "created_at",        // Campo: created_at, patient_name, doctor_name
+    sort_direction: "desc"        // Direção: asc, desc
+};
+```
+
+## Casos de Uso Práticos
+
+### 1. Buscar Consultas Recentes
+```javascript
+// Consultas dos últimos 7 dias
+const filters = {
+    dateFrom: new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0],
+    dateTo: new Date().toISOString().split('T')[0],
+    sortBy: "created_at_desc"
+};
+```
+
+### 2. Consultas de Emergência
+```javascript
+// Apenas emergências não processadas
+const emergencyFilters = {
+    consultation_type: "emergencia",
+    status: "processing",
+    sortBy: "created_at_desc"
+};
+```
+
+### 3. Relatório Mensal por Veterinário
+```javascript
+// Dr. Silva - Janeiro 2024
+const monthlyReport = {
+    doctor: "Dr. Silva",
+    dateFrom: "2024-01-01",
+    dateTo: "2024-01-31",
+    status: "completed"
+};
+```
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card
+    title="Webhook Handling"
+    icon="webhook"
+    href="/examples/webhook-handling"
+  >
+    Notificações automáticas em tempo real
+  </Card>
+  <Card
+    title="Integração Básica"
+    icon="play"
+    href="/examples/basic-integration"
+  >
+    Voltar ao exemplo básico
+  </Card>
+  <Card
+    title="API Reference"
+    icon="book"
+    href="/api-reference/notes/list"
+  >
+    Documentação completa dos filtros
+  </Card>
+  <Card
+    title="Error Handling"
+    icon="alert-triangle"
+    href="/integration/error-handling"
+  >
+    Tratamento robusto de erros
+  </Card>
+</CardGroup> 

@@ -1,0 +1,48 @@
+---
+title: "api-keys/{keyId}"
+api: "DELETE https://api.connectvets.com.br/api-keys/{keyId}"
+description: "Revogar uma chave de API"
+---
+
+Revogar permanentemente uma chave de API. Esta ação não pode ser desfeita.
+
+<RequestExample>
+
+```bash cURL
+curl -X DELETE https://api.connectvets.com.br/api-keys/api-key-uuid-123 \
+  -H "X-API-KEY: cvn_live_abc123def456..."
+```
+
+```javascript
+const response = await fetch('https://api.connectvets.com.br/api-keys/api-key-uuid-123', {
+  method: 'DELETE',
+  headers: {
+    'X-API-KEY': 'cvn_live_abc123def456...'
+  }
+});
+
+// Resposta 204 - sem conteúdo
+```
+
+```python
+import requests
+
+response = requests.delete(
+    'https://api.connectvets.com.br/api-keys/api-key-uuid-123',
+    headers={
+        'X-API-KEY': 'cvn_live_abc123def456...'
+    }
+)
+
+# Resposta 204 - sem conteúdo
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json Response
+// 204 No Content - Chave deletada com sucesso
+```
+
+</ResponseExample> 

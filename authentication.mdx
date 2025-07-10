@@ -200,21 +200,42 @@ cvn_1234567890abcdef1234567890abcdef
 ```
 </Frame>
 
-## Boas Práticas de Segurança
+<Accordion title="Detalhes técnicos">
+- **Prefixo**: `cvn_` identifica chaves do ConnectVets Notes
+- **Comprimento**: 36 caracteres total (4 do prefixo + 32 da chave)
+- **Formato**: Hexadecimal (0-9, a-f)
+- **Geração**: Cryptographically secure random
+- **Encoding**: UTF-8
+</Accordion>
+
+## Segurança e Boas Práticas
+
+<CardGroup cols={2}>
+  <Card title="✅ Faça" icon="check" color="#10b981">
+    - Armazene em variáveis de ambiente
+    - Use HTTPS em produção
+    - Monitore uso das chaves
+    - Rotacione chaves regularmente
+    - Use chaves com permissões mínimas
+  </Card>
+  <Card title="❌ Não faça" icon="x" color="#ef4444">
+    - Commitar chaves no código
+    - Logar chaves em arquivos
+    - Compartilhar chaves por email/chat
+    - Usar chaves de admin para tudo
+    - Deixar chaves sem expiração
+  </Card>
+</CardGroup>
 
 ### Armazenamento Seguro
-
-<Warning>
-**Nunca commite** API Keys em repositórios públicos. Use variáveis de ambiente ou sistemas de gerenciamento de secrets.
-</Warning>
 
 <CodeGroup>
 ```bash Variáveis de Ambiente
 # .env
 CONNECTVETS_API_KEY=cvn_1234567890abcdef
 
-# Uso
-curl -H "X-API-KEY: $CONNECTVETS_API_KEY" https://api.connectvets.com.br/v1/notes
+# .bashrc ou .zshrc
+export CONNECTVETS_API_KEY=cvn_1234567890abcdef
 ```
 
 ```javascript Node.js
@@ -223,11 +244,10 @@ require('dotenv').config();
 
 const apiKey = process.env.CONNECTVETS_API_KEY;
 
-const response = await fetch('https://api.connectvets.com.br/v1/notes', {
-  headers: {
-    'X-API-KEY': apiKey
-  }
-});
+// Ou usando config
+const config = {
+  apiKey: process.env.CONNECTVETS_API_KEY || 'fallback_for_dev'
+};
 ```
 
 ```python Python
@@ -236,138 +256,223 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-api_key = os.getenv('CONNECTVETS_API_KEY')
+API_KEY = os.getenv('CONNECTVETS_API_KEY')
 
-headers = {'X-API-KEY': api_key}
-response = requests.get('https://api.connectvets.com.br/v1/notes', headers=headers)
-```
-</CodeGroup>
-
-### Rotação de Chaves
-
-<Accordion title="Rotação Automática">
-  - Configure expiração automática das API Keys
-  - Implemente sistema de rotação programática
-  - Monitore chaves próximas do vencimento
-  - Use webhooks para notificações de expiração
-</Accordion>
-
-<Accordion title="Rotação Manual">
-  - Atualize chaves regularmente (recomendado: a cada 90 dias)
-  - Mantenha múltiplas chaves durante transições
-  - Teste nova chave antes de revogar a anterior
-  - Documente cronograma de rotação
-</Accordion>
-
-### Monitoramento
-
-<Accordion title="Logs de Auditoria">
-  - Monitore uso de API Keys no dashboard
-  - Configure alertas para uso anômalo
-  - Revise acessos regularmente
-  - Implemente análise de comportamento
-</Accordion>
-
-<Accordion title="Rate Limiting">
-  - Respeite limites de taxa por API Key
-  - Implemente backoff exponencial
-  - Use circuit breakers para falhas
-  - Monitore métricas de uso
-</Accordion>
-
-## Troubleshooting
-
-### Erros Comuns
-
-<Accordion title="401 Unauthorized">
-  **Causa**: API Key inválida, expirada ou mal formatada
-  
-  **Soluções**:
-  - Verifique se a chave está correta
-  - Confirme que não expirou
-  - Valide o formato do header
-  - Teste com nova API Key
-</Accordion>
-
-<Accordion title="403 Forbidden">
-  **Causa**: API Key válida mas sem permissões necessárias
-  
-  **Soluções**:
-  - Verifique permissões da chave
-  - Use chave com nível adequado
-  - Contate administrador para upgrade
-  - Revise escopo da operação
-</Accordion>
-
-<Accordion title="429 Too Many Requests">
-  **Causa**: Excedeu limite de taxa da API Key
-  
-  **Soluções**:
-  - Implemente retry com backoff
-  - Distribua requisições no tempo
-  - Use múltiplas chaves se necessário
-  - Otimize frequência de chamadas
-</Accordion>
-
-### Testando Autenticação
-
-Verifique se sua API Key está funcionando:
-
-<CodeGroup>
-```bash Teste Rápido
-curl -X GET "https://api.connectvets.com.br/v1/auth/validate" \
-  -H "X-API-KEY: your_api_key" \
-  -H "Content-Type: application/json"
+# Ou usando python-decouple
+from decouple import config
+API_KEY = config('CONNECTVETS_API_KEY')
 ```
 
-```javascript Validação
-const validateApiKey = async (apiKey) => {
-  try {
-    const response = await fetch('https://api.connectvets.com.br/v1/auth/validate', {
-      headers: {
-        'X-API-KEY': apiKey,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (response.ok) {
-      console.log('✅ API Key válida');
-      return true;
-    } else {
-      console.log('❌ API Key inválida');
-      return false;
+```go Go
+package main
+
+import (
+    "os"
+    "log"
+)
+
+func main() {
+    apiKey := os.Getenv("CONNECTVETS_API_KEY")
+    if apiKey == "" {
+        log.Fatal("CONNECTVETS_API_KEY não encontrada")
     }
-  } catch (error) {
-    console.log('❌ Erro de conectividade');
-    return false;
-  }
-};
+}
 ```
 </CodeGroup>
 
-## Limites e Cotas
+## Rate Limiting
 
-### Por Tipo de Chave
+API Keys têm limites de taxa baseados no tipo:
 
-| Tipo | Requisições/minuto | Requisições/hora | Notas/mês |
-|------|-------------------|------------------|-----------|
-| **Visualizador** | 60 | 1,000 | - |
-| **Editor** | 100 | 2,000 | 500 |
-| **Administrador** | 200 | 5,000 | 2,000 |
-
-### Upgrading de Limites
-
-<CardGroup cols={2}>
-  <Card title="Contate Vendas" icon="phone" href="https://wa.me/5531888835141">
-    Para limites customizados e planos empresariais
+<CardGroup cols={3}>
+  <Card title="Administrador" icon="crown" color="#f59e0b">
+    **1000 req/min**
+    Limite mais alto para operações administrativas
   </Card>
-  <Card title="Otimize Uso" icon="chart-line" href="/examples/advanced-filtering">
-    Aprenda a usar filtros e paginação eficientemente
+  <Card title="Editor" icon="pencil" color="#3b82f6">
+    **500 req/min**
+    Limite moderado para operações normais
+  </Card>
+  <Card title="Visualizador" icon="eye" color="#10b981">
+    **200 req/min**
+    Limite conservador para consultas
   </Card>
 </CardGroup>
 
----
+### Respondendo ao Rate Limiting
 
-<Tip>
-**Dúvidas sobre autenticação?** Nosso time está disponível no [Discord](https://discord.gg/uN4NxUGk) ou [WhatsApp](https://wa.me/5531888835141).
-</Tip> 
+Quando você excede o limite, a API retorna `429 Too Many Requests`:
+
+<CodeGroup>
+```json Resposta 429
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Rate limit exceeded. Try again in 60 seconds.",
+    "details": {
+      "limit": 500,
+      "remaining": 0,
+      "reset_at": "2024-01-15T10:31:00Z"
+    }
+  }
+}
+```
+
+```javascript Tratamento em JS
+async function apiCall() {
+  try {
+    const response = await fetch(url, { headers });
+    
+    if (response.status === 429) {
+      const resetTime = response.headers.get('X-RateLimit-Reset');
+      const waitTime = new Date(resetTime) - new Date();
+      
+      console.log(`Rate limit hit. Waiting ${waitTime}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      
+      return apiCall(); // Retry
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error('API Error:', error);
+  }
+}
+```
+
+```python Tratamento em Python
+import time
+import requests
+
+def api_call_with_retry():
+    while True:
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 429:
+            reset_time = response.headers.get('X-RateLimit-Reset')
+            wait_time = int(reset_time) - int(time.time())
+            
+            print(f"Rate limit hit. Waiting {wait_time}s...")
+            time.sleep(wait_time)
+            continue
+            
+        return response.json()
+```
+</CodeGroup>
+
+## Monitoramento e Logs
+
+### Verificar uso de uma API Key
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.connectvets.com.br/v1/api-keys/cvn_1234567890abcdef/usage" \
+  -H "X-API-KEY: your_admin_key"
+```
+
+```javascript JavaScript
+const usage = await fetch(`https://api.connectvets.com.br/v1/api-keys/${keyId}/usage`, {
+  headers: { 'X-API-KEY': 'your_admin_key' }
+});
+
+const stats = await usage.json();
+console.log('Uso da API Key:', stats.data);
+```
+</CodeGroup>
+
+### Listar todas as API Keys
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.connectvets.com.br/v1/api-keys" \
+  -H "X-API-KEY: your_admin_key"
+```
+
+```javascript JavaScript
+const keys = await fetch('https://api.connectvets.com.br/v1/api-keys', {
+  headers: { 'X-API-KEY': 'your_admin_key' }
+});
+
+const apiKeys = await keys.json();
+console.log('API Keys ativas:', apiKeys.data);
+```
+</CodeGroup>
+
+## Rotação de Chaves
+
+Para manter a segurança, rotacione suas API Keys regularmente:
+
+<Steps>
+  <Step title="Crie uma nova API Key">
+    Gere uma nova chave com as mesmas permissões
+  </Step>
+  <Step title="Atualize seus sistemas">
+    Substitua a chave antiga pela nova em todos os sistemas
+  </Step>
+  <Step title="Teste a integração">
+    Verifique se tudo funciona com a nova chave
+  </Step>
+  <Step title="Revogue a chave antiga">
+    Delete a chave antiga do dashboard
+  </Step>
+</Steps>
+
+<Warning>
+**Cuidado**: Sempre teste a nova chave antes de revogar a antiga para evitar interrupções no serviço.
+</Warning>
+
+## Resolução de Problemas
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    **Possíveis causas:**
+    - API Key inválida ou expirada
+    - Header `X-API-KEY` ausente
+    - Typo na chave
+
+    **Soluções:**
+    - Verifique se a chave está correta
+    - Confirme que o header está sendo enviado
+    - Regenere a chave se necessário
+  </Accordion>
+
+  <Accordion title="403 Forbidden">
+    **Possíveis causas:**
+    - API Key sem permissões suficientes
+    - Tentativa de acessar recursos de outro tenant
+    - Chave desabilitada
+
+    **Soluções:**
+    - Use uma chave com permissões adequadas
+    - Verifique se está acessando o tenant correto
+    - Confirme se a chave está ativa
+  </Accordion>
+
+  <Accordion title="429 Too Many Requests">
+    **Possíveis causas:**
+    - Limite de rate excedido
+    - Muitas requisições simultâneas
+
+    **Soluções:**
+    - Implemente retry com backoff
+    - Distribua requisições ao longo do tempo
+    - Use cache para reduzir chamadas
+  </Accordion>
+</AccordionGroup>
+
+## Próximos passos
+
+<CardGroup cols={2}>
+  <Card title="Fazer primeira requisição" icon="play" href="/quickstart">
+    Use sua API Key para processar o primeiro áudio
+  </Card>
+  <Card title="Explorar endpoints" icon="code" href="/api-reference/overview">
+    Veja todos os endpoints disponíveis
+  </Card>
+  <Card title="Configurar webhooks" icon="webhook" href="/concepts/webhooks">
+    Receba notificações automáticas de eventos
+  </Card>
+  <Card title="Exemplos de integração" icon="puzzle-piece" href="/examples/basic-integration">
+    Veja implementações práticas
+  </Card>
+</CardGroup> 
